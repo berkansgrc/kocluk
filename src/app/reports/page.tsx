@@ -10,10 +10,10 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">
-            My Reports
+            Raporlarım
           </h1>
           <p className="text-muted-foreground">
-            Analyze your performance and study habits.
+            Performansınızı ve çalışma alışkanlıklarınızı analiz edin.
           </p>
         </div>
       </div>

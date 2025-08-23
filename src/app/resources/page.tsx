@@ -10,20 +10,20 @@ import { BookCopy, FileVideo, PencilRuler, ExternalLink } from 'lucide-react';
 
 const resources = [
   {
-    title: 'Trigonometry Notes',
-    description: 'Comprehensive notes covering all key concepts.',
+    title: 'Trigonometri Notları',
+    description: 'Tüm anahtar kavramları kapsayan kapsamlı notlar.',
     icon: BookCopy,
     dataAiHint: 'books library',
   },
   {
-    title: 'Calculus Exercises',
-    description: 'Practice problems to sharpen your skills.',
+    title: 'Kalkülüs Alıştırmaları',
+    description: 'Becerilerinizi geliştirmek için pratik problemler.',
     icon: PencilRuler,
     dataAiHint: 'math notebook',
   },
   {
-    title: 'Geometry Videos',
-    description: 'Visual explanations of complex geometric theorems.',
+    title: 'Geometri Videoları',
+    description: 'Karmaşık geometrik teoremlerin görsel açıklamaları.',
     icon: FileVideo,
     dataAiHint: 'video lecture',
   },
@@ -35,10 +35,10 @@ export default function ResourcesPage() {
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">
-            Resources
+            Kaynaklar
           </h1>
           <p className="text-muted-foreground">
-            Curated materials to support your learning journey.
+            Öğrenme yolculuğunuzu desteklemek için derlenmiş materyaller.
           </p>
         </div>
       </div>
@@ -61,7 +61,7 @@ export default function ResourcesPage() {
                 onClick={(e) => e.preventDefault()}
                 className="inline-flex items-center text-sm font-medium text-primary hover:underline mt-4"
               >
-                Open Resource <ExternalLink className="ml-1 h-4 w-4" />
+                Kaynağı Aç <ExternalLink className="ml-1 h-4 w-4" />
               </a>
             </CardContent>
           </Card>

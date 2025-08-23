@@ -92,9 +92,9 @@ export default function StrengthWeaknessMatrix({ studySessions }: StrengthWeakne
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Subject Strength & Weakness Matrix</CardTitle>
+        <CardTitle>Ders Güçlü & Zayıf Yön Matrisi</CardTitle>
         <CardDescription>
-          Analyze your performance in different subjects. Sort by accuracy to find areas for improvement.
+          Farklı derslerdeki performansınızı analiz edin. Geliştirilecek alanları bulmak için doğruluğa göre sıralayın.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -102,10 +102,10 @@ export default function StrengthWeaknessMatrix({ studySessions }: StrengthWeakne
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Subject</TableHead>
-                <SortableHeader sortKey="totalQuestions" label="Questions Solved" />
-                <SortableHeader sortKey="totalMinutes" label="Time Spent (min)" />
-                <SortableHeader sortKey="accuracy" label="Accuracy" />
+                <TableHead>Ders</TableHead>
+                <SortableHeader sortKey="totalQuestions" label="Çözülen Soru" />
+                <SortableHeader sortKey="totalMinutes" label="Harcanan Zaman (dk)" />
+                <SortableHeader sortKey="accuracy" label="Doğruluk" />
               </TableRow>
             </TableHeader>
             <TableBody>

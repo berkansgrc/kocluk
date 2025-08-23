@@ -24,12 +24,12 @@ import { useToast } from '@/hooks/use-toast';
 import { PlusCircle } from 'lucide-react';
 
 const formSchema = z.object({
-  subject: z.string().min(2, { message: 'Subject must be at least 2 characters.' }),
-  durationInMinutes: z.coerce.number().min(1, { message: 'Duration must be at least 1 minute.' }),
-  questionsSolved: z.coerce.number().min(0, { message: 'Cannot be negative.' }),
-  questionsCorrect: z.coerce.number().min(0, { message: 'Cannot be negative.' }),
+  subject: z.string().min(2, { message: 'Ders en az 2 karakter olmalıdır.' }),
+  durationInMinutes: z.coerce.number().min(1, { message: 'Süre en az 1 dakika olmalıdır.' }),
+  questionsSolved: z.coerce.number().min(0, { message: 'Negatif olamaz.' }),
+  questionsCorrect: z.coerce.number().min(0, { message: 'Negatif olamaz.' }),
 }).refine(data => data.questionsCorrect <= data.questionsSolved, {
-  message: 'Correct questions cannot exceed solved questions.',
+  message: 'Doğru soru sayısı çözülen soru sayısını geçemez.',
   path: ['questionsCorrect'],
 });
 
@@ -47,10 +47,10 @@ export default function StudySessionForm() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log('New session logged:', values);
+    console.log('Yeni oturum kaydedildi:', values);
     toast({
-      title: 'Session Saved!',
-      description: `Your ${values.subject} study session has been recorded.`,
+      title: 'Oturum Kaydedildi!',
+      description: `${values.subject} çalışma oturumunuz kaydedildi.`,
     });
     form.reset();
   }
@@ -58,9 +58,9 @@ export default function StudySessionForm() {
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle>Add New Study Session</CardTitle>
+        <CardTitle>Yeni Çalışma Oturumu Ekle</CardTitle>
         <CardDescription>
-          Log your practice to track your progress.
+          İlerlemenizi takip etmek için pratiğinizi kaydedin.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -71,9 +71,9 @@ export default function StudySessionForm() {
               name="subject"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Subject</FormLabel>
+                  <FormLabel>Ders</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Calculus" {...field} />
+                    <Input placeholder="örn. Kalkülüs" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -85,7 +85,7 @@ export default function StudySessionForm() {
                 name="durationInMinutes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Duration (min)</FormLabel>
+                    <FormLabel>Süre (dk)</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} />
                     </FormControl>
@@ -98,7 +98,7 @@ export default function StudySessionForm() {
                 name="questionsSolved"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Solved</FormLabel>
+                    <FormLabel>Çözülen</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} />
                     </FormControl>
@@ -111,7 +111,7 @@ export default function StudySessionForm() {
                 name="questionsCorrect"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Correct</FormLabel>
+                    <FormLabel>Doğru</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} />
                     </FormControl>
@@ -121,7 +121,7 @@ export default function StudySessionForm() {
               />
             </div>
             <Button type="submit" className="w-full">
-              <PlusCircle className="mr-2 h-4 w-4" /> Save Session
+              <PlusCircle className="mr-2 h-4 w-4" /> Oturumu Kaydet
             </Button>
           </form>
         </Form>

@@ -36,16 +36,16 @@ const prompt = ai.definePrompt({
   name: 'weaknessDetectorPrompt',
   input: {schema: WeaknessDetectorInputSchema},
   output: {schema: WeaknessDetectorOutputSchema},
-  prompt: `You are an AI assistant designed to analyze a student's study sessions and provide personalized feedback on areas they need to focus on to improve their overall performance.
+  prompt: `You are an AI assistant designed to analyze a student's study sessions and provide personalized feedback in Turkish on areas they need to focus on to improve their overall performance.
 
   Analyze the following study sessions for {{studentName}}:
 
   {{#each studySessions}}
-  - Subject: {{subject}}, Questions Solved: {{questionsSolved}}, Questions Correct: {{questionsCorrect}}
+  - Ders: {{subject}}, Çözülen Soru: {{questionsSolved}}, Doğru Sayısı: {{questionsCorrect}}
   {{/each}}
 
-  Based on this data, provide specific and actionable feedback to the student.  Focus on identifying subjects where the student's accuracy rate (questionsCorrect / questionsSolved) is low, and suggest strategies for improvement.
-  If the student has no data, encourage the student to log their study sessions.
+  Based on this data, provide specific and actionable feedback to the student in Turkish.  Focus on identifying subjects where the student's accuracy rate (questionsCorrect / questionsSolved) is low, and suggest strategies for improvement.
+  If the student has no data, encourage the student to log their study sessions in Turkish.
   Ensure the feedback is encouraging and helpful.
   Return the output in the format specified by the schema description.`,
 });

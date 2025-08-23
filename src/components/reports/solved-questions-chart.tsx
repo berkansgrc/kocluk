@@ -11,6 +11,7 @@ import {
 import type { StudySession } from '@/lib/types';
 import { useMemo } from 'react';
 import { subDays, format, eachDayOfInterval, isSameDay } from 'date-fns';
+import { tr } from 'date-fns/locale';
 
 interface SolvedQuestionsChartProps {
   studySessions: StudySession[];
@@ -26,7 +27,7 @@ export default function SolvedQuestionsChart({ studySessions }: SolvedQuestionsC
       const dailySessions = studySessions.filter((session) => isSameDay(session.date, date));
       const total = dailySessions.reduce((sum, session) => sum + session.questionsSolved, 0);
       return {
-        name: format(date, 'EEE'),
+        name: format(date, 'EEE', { locale: tr }),
         total: total,
       };
     });
@@ -35,8 +36,8 @@ export default function SolvedQuestionsChart({ studySessions }: SolvedQuestionsC
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Daily Solved Questions</CardTitle>
-        <CardDescription>Total questions solved over the last 7 days.</CardDescription>
+        <CardTitle>Günlük Çözülen Sorular</CardTitle>
+        <CardDescription>Son 7 günde çözülen toplam soru sayısı.</CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>

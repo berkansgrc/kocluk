@@ -4,8 +4,8 @@ import { AppLayout } from '@/components/app-layout';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'Mathlete AI',
-  description: 'An AI-powered math learning platform.',
+  title: 'Matematikçi AI',
+  description: 'Yapay zeka destekli bir matematik öğrenme platformu.',
 };
 
 export default function RootLayout({
@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="tr" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link

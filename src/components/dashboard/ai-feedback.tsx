@@ -38,8 +38,8 @@ export default function AIFeedback({ studentName, studySessions }: AIFeedbackPro
         const result = await weaknessDetector(input);
         setFeedback(result.feedback);
       } catch (error) {
-        console.error('Error fetching AI feedback:', error);
-        setFeedback('Could not load feedback at this time.');
+        console.error('AI geri bildirim alınırken hata oluştu:', error);
+        setFeedback('Şu anda geri bildirim yüklenemedi.');
       } finally {
         setLoading(false);
       }
@@ -54,9 +54,9 @@ export default function AIFeedback({ studentName, studySessions }: AIFeedbackPro
           <Lightbulb className="w-6 h-6 text-primary" />
         </div>
         <div>
-          <CardTitle>AI Weakness Detector</CardTitle>
+          <CardTitle>Yapay Zeka Zayıflık Tespiti</CardTitle>
           <CardDescription>
-            Personalized feedback to guide your studies.
+            Çalışmalarınıza yön vermek için kişiselleştirilmiş geri bildirim.
           </CardDescription>
         </div>
       </CardHeader>

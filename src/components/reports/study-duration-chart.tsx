@@ -42,8 +42,8 @@ export default function StudyDurationChart({ studySessions }: StudyDurationChart
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Time Distribution</CardTitle>
-        <CardDescription>Study time by subject for the last 30 days.</CardDescription>
+        <CardTitle>Zaman Dağılımı</CardTitle>
+        <CardDescription>Son 30 gün için derslere göre çalışma süresi.</CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>
@@ -55,7 +55,7 @@ export default function StudyDurationChart({ studySessions }: StudyDurationChart
                 borderColor: 'hsl(var(--border))',
                 borderRadius: 'var(--radius)',
               }}
-              formatter={(value) => `${value} min`}
+              formatter={(value) => `${value} dk`}
             />
             <Legend verticalAlign="bottom" height={36} iconSize={10} />
             <Pie

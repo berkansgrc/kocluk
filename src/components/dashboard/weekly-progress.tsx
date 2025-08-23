@@ -34,16 +34,15 @@ export default function WeeklyProgress({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Weekly Goal Progress</CardTitle>
+        <CardTitle>Haftalık Hedef İlerlemesi</CardTitle>
         <CardDescription>
-          You've solved {solvedThisWeek} out of your {weeklyGoal} question goal
-          this week.
+          Bu hafta {weeklyGoal} soruluk hedefinin {solvedThisWeek} tanesini çözdün.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Progress value={progressPercentage} className="w-full" />
         <p className="text-sm text-muted-foreground mt-2">
-          {progressPercentage.toFixed(0)}% complete
+          %{progressPercentage.toFixed(0)} tamamlandı
         </p>
       </CardContent>
     </Card>

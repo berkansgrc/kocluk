@@ -18,9 +18,9 @@ import { BarChart3, BookOpen, LayoutDashboard, Target } from 'lucide-react';
 import { Button } from './ui/button';
 
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/reports', label: 'My Reports', icon: BarChart3 },
-  { href: '/resources', label: 'Resources', icon: BookOpen },
+  { href: '/', label: 'Anasayfa', icon: LayoutDashboard },
+  { href: '/reports', label: 'Raporlarım', icon: BarChart3 },
+  { href: '/resources', label: 'Kaynaklar', icon: BookOpen },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {
@@ -38,7 +38,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             </Button>
             <div className="flex flex-col">
               <h2 className="text-lg font-semibold tracking-tight font-headline">
-                Mathlete AI
+                Matematikçi AI
               </h2>
             </div>
           </div>
