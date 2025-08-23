@@ -14,13 +14,14 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { BarChart3, BookOpen, LayoutDashboard, Target } from 'lucide-react';
+import { BarChart3, BookOpen, LayoutDashboard, Shield, Target } from 'lucide-react';
 import { Button } from './ui/button';
 
 const navItems = [
   { href: '/', label: 'Anasayfa', icon: LayoutDashboard },
   { href: '/reports', label: 'Raporlarım', icon: BarChart3 },
   { href: '/resources', label: 'Kaynaklar', icon: BookOpen },
+  { href: '/admin', label: 'Admin Paneli', icon: Shield },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {
