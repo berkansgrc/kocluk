@@ -32,7 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Send, UserPlus, Users } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { addDoc, collection, getDocs } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { Student } from '@/lib/types';
 import {
   Table,
