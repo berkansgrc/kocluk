@@ -11,18 +11,12 @@ import {
 import { 
   User, 
   signOut,
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   onAuthStateChanged,
 } from 'firebase/auth';
 import { 
   doc,
   getDoc,
-  setDoc,
-  collection,
-  query,
-  where,
-  getDocs,
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
@@ -35,7 +29,6 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   login: (email: string, pass: string) => Promise<any>;
-  signup: (email: string, pass: string) => Promise<any>;
   logout: () => void;
   refreshStudentData: () => void;
 }
@@ -66,11 +59,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (firebaseUser.email === ADMIN_EMAIL) {
       setIsAdmin(true);
-      setStudentData(null);
+      setStudentData(null); // Admin doesn't have student data
       setLoading(false);
       return;
     }
 
+    // Regular student user
     setIsAdmin(false);
     try {
       const studentDocRef = doc(db, 'students', firebaseUser.uid);
@@ -79,9 +73,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const data = studentDocSnap.data() as Omit<Student, 'id'>;
         setStudentData({ id: studentDocSnap.id, ...data });
       } else {
-        // This case might happen if admin deletes the student from db but auth record remains.
-        console.warn("No student data found for this user in Firestore.");
-        setStudentData(null);
+        console.warn("No student data found for this user in Firestore. Logging out.");
+        // This case can happen if admin deletes user from DB but not from Auth.
+        // Forcing logout.
+        await signOut(auth);
       }
     } catch (error) {
       console.error("Error fetching student data:", error);
@@ -104,73 +99,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (loading) return;
 
+    const isAuthPage = pathname === '/login';
     const isProtectedRoute = protectedRoutes.includes(pathname) || pathname.startsWith(adminRoute);
 
     if (!user && isProtectedRoute) {
       router.push('/login');
-    } else if (user && !isAdmin && pathname.startsWith(adminRoute)) {
-      toast({
-        title: 'Erişim Engellendi',
-        description: 'Admin paneline erişim yetkiniz yok.',
-        variant: 'destructive',
-      });
-      router.push('/');
-    } else if (user && pathname === '/login') {
-      router.push('/');
+    } else if (user) {
+        if(isAuthPage) {
+          router.push('/');
+        } else if (pathname.startsWith(adminRoute) && !isAdmin) {
+            toast({
+            title: 'Erişim Engellendi',
+            description: 'Admin paneline erişim yetkiniz yok.',
+            variant: 'destructive',
+          });
+          router.push('/');
+        }
     }
   }, [user, isAdmin, loading, pathname, router, toast]);
 
   const login = async (email: string, pass: string) => {
     return signInWithEmailAndPassword(auth, email, pass);
   };
-  
-  const signup = async (email: string, pass: string) => {
-    if (email === ADMIN_EMAIL) {
-      throw new Error("Admin hesabı bu şekilde oluşturulamaz.");
-    }
-
-    // Check if a student document with this email exists (created by admin)
-    const q = query(collection(db, "students"), where("email", "==", email));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      throw new Error("Bu e-posta adresiyle kayıt olmaya izniniz yok. Lütfen bir yönetici ile iletişime geçin.");
-    }
-    
-    // Check if an auth user already exists for this email
-     const studentDoc = querySnapshot.docs[0];
-     if(studentDoc.data().authLinked) {
-        throw new Error("Bu e-posta adresiyle zaten bir hesap oluşturulmuş.");
-     }
-
-    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-    const newStudentUser = userCredential.user;
-
-    // After creating the user, update the corresponding student document with the new UID.
-    // This is not ideal, as the original doc was created with a random ID. Let's assume admin now creates doc with email as ID.
-    // A better approach is for admin to just add email to a list, and on signup, a new doc is created with UID.
-    // Let's stick to the current logic: admin creates a student doc.
-    
-    const studentInfo = studentDoc.data();
-    
-    // Create a new document with the UID as the ID
-    const studentDocRef = doc(db, 'students', newStudentUser.uid);
-    await setDoc(studentDocRef, {
-        name: studentInfo.name,
-        email: studentInfo.email,
-        weeklyQuestionGoal: 100,
-        studySessions: [],
-    });
-
-    return userCredential;
-  };
 
   const logout = async () => {
     setLoading(true);
+    await signOut(auth);
     setUser(null);
     setStudentData(null);
     setIsAdmin(false);
-    await signOut(auth);
     router.push('/login');
     setLoading(false);
   };
@@ -183,7 +140,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user, fetchStudentData]);
 
   return (
-    <AuthContext.Provider value={{ user, studentData, loading, isAdmin, login, signup, logout, refreshStudentData }}>
+    <AuthContext.Provider value={{ user, studentData, loading, isAdmin, login, logout, refreshStudentData }}>
       {children}
     </AuthContext.Provider>
   );

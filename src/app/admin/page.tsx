@@ -19,19 +19,18 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Send, UserPlus, Users } from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { addDoc, collection, getDocs } from 'firebase/firestore';
+import { UserPlus, Users } from 'lucide-react';
+import { db, auth } from '@/lib/firebase';
+import {
+  doc,
+  setDoc,
+  collection,
+  getDocs,
+} from 'firebase/firestore';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useEffect, useState, useCallback } from 'react';
 import type { Student } from '@/lib/types';
 import {
@@ -43,48 +42,43 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-const docFormSchema = z.object({
-  studentName: z.string({ required_error: 'Lütfen bir öğrenci seçin.' }),
-  documentUrl: z.string().url({ message: 'Lütfen geçerli bir URL girin.' }),
-});
-
 const studentFormSchema = z.object({
-  name: z.string().min(2, { message: 'İsim en az 2 karakter olmalıdır.'}),
-  email: z.string().email({ message: 'Lütfen geçerli bir e-posta adresi girin.' }),
+  name: z.string().min(2, { message: 'İsim en az 2 karakter olmalıdır.' }),
+  email: z
+    .string()
+    .email({ message: 'Lütfen geçerli bir e-posta adresi girin.' }),
+  password: z.string().min(6, { message: 'Şifre en az 6 karakter olmalıdır.' }),
 });
-
 
 export default function AdminPage() {
   const { toast } = useToast();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const docForm = useForm<z.infer<typeof docFormSchema>>({
-    resolver: zodResolver(docFormSchema),
-    defaultValues: {
-      documentUrl: '',
-    },
-  });
-  
   const studentForm = useForm<z.infer<typeof studentFormSchema>>({
     resolver: zodResolver(studentFormSchema),
     defaultValues: {
       name: '',
       email: '',
+      password: '',
     },
   });
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, "students"));
-      const studentsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+      const querySnapshot = await getDocs(collection(db, 'students'));
+      const studentsList = querySnapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as Student)
+      );
       setStudents(studentsList);
     } catch (error) {
-      console.error("Öğrenciler getirilirken hata:", error);
+      console.error('Öğrenciler getirilirken hata:', error);
       toast({
         title: 'Hata',
-        description: 'Öğrenci listesi alınamadı. Firestore kurallarınızı kontrol edin.',
+        description:
+          'Öğrenci listesi alınamadı. Firestore kurallarınızı kontrol edin.',
         variant: 'destructive',
       });
     } finally {
@@ -96,41 +90,55 @@ export default function AdminPage() {
     fetchStudents();
   }, [fetchStudents]);
 
-
-  function onDocSubmit(values: z.infer<typeof docFormSchema>) {
-    console.log('Döküman gönderildi:', values);
-    toast({
-      title: 'Döküman Gönderildi!',
-      description: `${values.studentName} adlı öğrenciye döküman başarıyla gönderildi.`,
-    });
-    docForm.reset();
-  }
-
   async function onStudentSubmit(values: z.infer<typeof studentFormSchema>) {
+    setIsSubmitting(true);
     try {
-      // It's better to create student document with a specific ID if possible, 
-      // but for now, Firestore will autogenerate it.
-      // The signup logic will need to handle this.
-      await addDoc(collection(db, "students"), {
+      // Create user in Firebase Auth
+      // NOTE: This approach has limitations. It uses a secondary, temporary Firebase app instance
+      // to create a user without signing the admin out. This is a workaround for not having a backend.
+      const {initializeApp} = await import('firebase/app');
+      const {getAuth} = await import('firebase/auth');
+
+      const tempAppName = `temp-app-${Date.now()}`;
+      const tempApp = initializeApp(auth.app.options, tempAppName);
+      const tempAuth = getAuth(tempApp);
+      
+      const userCredential = await createUserWithEmailAndPassword(
+        tempAuth,
+        values.email,
+        values.password
+      );
+      const newStudentUser = userCredential.user;
+
+      // Save student data in Firestore with the UID as the document ID
+      const studentDocRef = doc(db, 'students', newStudentUser.uid);
+      await setDoc(studentDocRef, {
         name: values.name,
         email: values.email,
-        // Default values for a new student pre-registration
-        weeklyQuestionGoal: 100, 
+        weeklyQuestionGoal: 100, // Default goal
         studySessions: [],
       });
+
       toast({
         title: 'Öğrenci Eklendi!',
-        description: `${values.name} adlı öğrenci başarıyla eklendi. Bu öğrenci artık kayıt olabilir.`,
+        description: `${values.name} adlı öğrenci başarıyla oluşturuldu. Belirlediğiniz şifre ile giriş yapabilir.`,
       });
+
       studentForm.reset();
       fetchStudents(); // Refresh the list
-    } catch (error) {
-      console.error("Öğrenci eklenirken hata: ", error);
+    } catch (error: any) {
+      console.error('Öğrenci eklenirken hata: ', error);
+      let errorMessage = 'Öğrenci oluşturulurken bir sorun oluştu.';
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'Bu e-posta adresi zaten başka bir hesap tarafından kullanılıyor.';
+      }
       toast({
         title: 'Hata',
-        description: 'Öğrenci eklenirken bir sorun oluştu.',
+        description: errorMessage,
         variant: 'destructive',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -150,14 +158,19 @@ export default function AdminPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className='flex items-center gap-2'><UserPlus/> Yeni Öğrenci Ekle</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus /> Yeni Öğrenci Ekle
+            </CardTitle>
             <CardDescription>
-              Sisteme yeni bir öğrenci kaydedin. Sadece kayıtlı öğrenciler giriş yapabilir.
+              Sisteme yeni bir öğrenci kaydedin.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...studentForm}>
-              <form onSubmit={studentForm.handleSubmit(onStudentSubmit)} className="space-y-6">
+              <form
+                onSubmit={studentForm.handleSubmit(onStudentSubmit)}
+                className="space-y-6"
+              >
                 <FormField
                   control={studentForm.control}
                   name="name"
@@ -171,7 +184,7 @@ export default function AdminPage() {
                     </FormItem>
                   )}
                 />
-                 <FormField
+                <FormField
                   control={studentForm.control}
                   name="email"
                   render={({ field }) => (
@@ -184,8 +197,25 @@ export default function AdminPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full">
-                  <UserPlus className="mr-2 h-4 w-4" /> Öğrenciyi Ekle
+                <FormField
+                  control={studentForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Başlangıç Şifresi</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                   {isSubmitting ? 'Ekleniyor...' : (
+                    <>
+                      <UserPlus className="mr-2 h-4 w-4" /> Öğrenciyi Ekle
+                    </>
+                  )}
                 </Button>
               </form>
             </Form>
@@ -193,101 +223,51 @@ export default function AdminPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className='flex items-center gap-2'><Send/> Döküman Gönder</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Users /> Kayıtlı Öğrenciler
+            </CardTitle>
             <CardDescription>
-              Öğrencilere Google Drive döküman bağlantıları gönderin.
+              Sistemde kayıtlı olan tüm öğrencilerin listesi.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...docForm}>
-              <form onSubmit={docForm.handleSubmit(onDocSubmit)} className="space-y-6">
-                <FormField
-                  control={docForm.control}
-                  name="studentName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Öğrenci</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={loading ? "Yükleniyor..." : "Bir öğrenci seçin"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {students.map((s) => (
-                            <SelectItem key={s.id} value={s.name}>
-                              {s.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>İsim Soyisim</TableHead>
+                    <TableHead>E-posta Adresi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="text-center">
+                        Yükleniyor...
+                      </TableCell>
+                    </TableRow>
+                  ) : students.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="text-center">
+                        Kayıtlı öğrenci bulunamadı.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    students.map((student) => (
+                      <TableRow key={student.id}>
+                        <TableCell className="font-medium">
+                          {student.name}
+                        </TableCell>
+                        <TableCell>{student.email}</TableCell>
+                      </TableRow>
+                    ))
                   )}
-                />
-                <FormField
-                  control={docForm.control}
-                  name="documentUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Google Drive Linki</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://docs.google.com/..." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" className="w-full">
-                  <Send className="mr-2 h-4 w-4" /> Gönder
-                </Button>
-              </form>
-            </Form>
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
-       <Card>
-        <CardHeader>
-          <CardTitle className='flex items-center gap-2'><Users/> Kayıtlı Öğrenciler</CardTitle>
-          <CardDescription>
-            Sistemde kayıtlı olan tüm öğrencilerin listesi.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-           <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>İsim Soyisim</TableHead>
-                  <TableHead>E-posta Adresi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center">
-                      Yükleniyor...
-                    </TableCell>
-                  </TableRow>
-                ) : students.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center">
-                     Kayıtlı öğrenci bulunamadı.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  students.map((student) => (
-                    <TableRow key={student.id}>
-                      <TableCell className="font-medium">{student.name}</TableCell>
-                      <TableCell>{student.email}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
