@@ -28,6 +28,7 @@ import {
 import { app, auth, db } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 import type { Student } from '@/lib/types';
+import { useToast } from './use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -55,6 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
 
   const fetchStudentData = useCallback(async (firebaseUser: User) => {
     if (!firebaseUser) {
@@ -119,7 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       router.push('/');
     }
 
-  }, [user, isAdmin, loading, pathname, router]);
+  }, [user, isAdmin, loading, pathname, router, toast]);
 
 
   const login = async (email: string, pass: string) => {
@@ -167,6 +169,3 @@ export const useAuth = () => {
   }
   return context;
 };
-function toast(arg0: { title: string; description: string; variant: "destructive"; }) {
-    throw new Error('Function not implemented.');
-}
