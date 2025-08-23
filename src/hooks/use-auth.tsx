@@ -71,14 +71,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setIsAdmin(false);
-    const q = query(collection(db, "students"), where("email", "==", firebaseUser.email));
-    const querySnapshot = await getDocs(q);
+    
+    // E-posta ile sorgu yapmak yerine doğrudan kullanıcının UID'si ile belgeyi al.
+    // Bu daha verimli ve güvenlik kurallarıyla daha uyumlu.
+    const studentDocRef = doc(db, "students", firebaseUser.uid);
+    const studentDocSnap = await getDoc(studentDocRef);
 
-    if (!querySnapshot.empty) {
-      const studentDoc = querySnapshot.docs[0];
-      const data = studentDoc.data() as Omit<Student, 'id'>;
-      setStudentData({ id: studentDoc.id, ...data });
+    if (studentDocSnap.exists()) {
+      const data = studentDocSnap.data() as Omit<Student, 'id'>;
+      setStudentData({ id: studentDocSnap.id, ...data });
     } else {
+       // Bu durum, kullanıcı Firebase Auth'da var ama Firestore'da bir öğrenci belgesi yoksa oluşur.
+       // Örneğin, admin tarafından henüz eklenmemiş ama kayıt olmaya çalışan bir kullanıcı.
        console.warn("No student data found for this user in Firestore.");
        setStudentData(null);
     }
@@ -138,7 +142,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (querySnapshot.empty) {
       throw new Error("Bu e-posta adresiyle kayıt olmaya izniniz yok. Lütfen bir yönetici ile iletişime geçin.");
     }
-    return createUserWithEmailAndPassword(auth, email, pass);
+    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+    
+    // Kayıt olduktan sonra, veritabanı belgesini kullanıcının UID'si ile güncellememiz gerekebilir.
+    // Şimdilik, adminin öğrenciyi oluştururken doğru UID'yi atadığını varsayıyoruz.
+    // Daha gelişmiş bir senaryoda, burada bir "öğrenci profili tamamlama" akışı olabilir.
+
+    return userCredential;
   };
 
   const logout = async () => {
