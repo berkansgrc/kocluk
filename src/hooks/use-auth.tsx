@@ -72,8 +72,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     setIsAdmin(false);
     
-    // E-posta ile sorgu yapmak yerine doğrudan kullanıcının UID'si ile belgeyi al.
-    // Bu daha verimli ve güvenlik kurallarıyla daha uyumlu.
     const studentDocRef = doc(db, "students", firebaseUser.uid);
     const studentDocSnap = await getDoc(studentDocRef);
 
@@ -81,8 +79,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = studentDocSnap.data() as Omit<Student, 'id'>;
       setStudentData({ id: studentDocSnap.id, ...data });
     } else {
-       // Bu durum, kullanıcı Firebase Auth'da var ama Firestore'da bir öğrenci belgesi yoksa oluşur.
-       // Örneğin, admin tarafından henüz eklenmemiş ama kayıt olmaya çalışan bir kullanıcı.
        console.warn("No student data found for this user in Firestore.");
        setStudentData(null);
     }
@@ -109,12 +105,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (loading) return;
 
     const isProtectedRoute = protectedRoutes.includes(pathname);
-    const isAdminRoute = pathname.startsWith(adminRoute);
+    const isAdminRoutePath = pathname.startsWith(adminRoute);
 
-    if (!user && (isProtectedRoute || isAdminRoute)) {
+    if (!user && (isProtectedRoute || isAdminRoutePath)) {
       router.push('/login');
-    } else if (user && !isAdmin && isAdminRoute) {
-      // Eğer kullanıcı admin değilse ve admin rotasına girmeye çalışıyorsa anasayfaya yönlendir.
+    } else if (user && !isAdmin && isAdminRoutePath) {
       toast({
         title: 'Erişim Engellendi',
         description: 'Admin paneline erişim yetkiniz yok.',
@@ -133,7 +128,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const signup = async (email: string, pass: string) => {
-    // Admin kullanıcıları bu standart kayıt akışını kullanamaz.
     if (email === ADMIN_EMAIL) {
         throw new Error("Admin hesabı bu şekilde oluşturulamaz.");
     }
@@ -144,10 +138,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     
-    // Kayıt olduktan sonra, veritabanı belgesini kullanıcının UID'si ile güncellememiz gerekebilir.
-    // Şimdilik, adminin öğrenciyi oluştururken doğru UID'yi atadığını varsayıyoruz.
-    // Daha gelişmiş bir senaryoda, burada bir "öğrenci profili tamamlama" akışı olabilir.
-
     return userCredential;
   };
 
