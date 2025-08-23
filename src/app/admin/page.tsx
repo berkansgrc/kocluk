@@ -74,7 +74,7 @@ export default function AdminPage() {
     },
   });
 
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
       const querySnapshot = await getDocs(collection(db, "students"));
@@ -84,17 +84,17 @@ export default function AdminPage() {
       console.error("Öğrenciler getirilirken hata:", error);
       toast({
         title: 'Hata',
-        description: 'Öğrenci listesi alınamadı.',
+        description: 'Öğrenci listesi alınamadı. Firestore kurallarınızı kontrol edin.',
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchStudents();
-  }, []);
+  }, [fetchStudents]);
 
 
   function onDocSubmit(values: z.infer<typeof docFormSchema>) {
@@ -108,15 +108,19 @@ export default function AdminPage() {
 
   async function onStudentSubmit(values: z.infer<typeof studentFormSchema>) {
     try {
+      // It's better to create student document with a specific ID if possible, 
+      // but for now, Firestore will autogenerate it.
+      // The signup logic will need to handle this.
       await addDoc(collection(db, "students"), {
         name: values.name,
         email: values.email,
-        weeklyQuestionGoal: 100, // Default value
-        studySessions: [], // Default value
+        // Default values for a new student pre-registration
+        weeklyQuestionGoal: 100, 
+        studySessions: [],
       });
       toast({
         title: 'Öğrenci Eklendi!',
-        description: `${values.name} adlı öğrenci başarıyla eklendi.`,
+        description: `${values.name} adlı öğrenci başarıyla eklendi. Bu öğrenci artık kayıt olabilir.`,
       });
       studentForm.reset();
       fetchStudents(); // Refresh the list
@@ -211,7 +215,7 @@ export default function AdminPage() {
                         </FormControl>
                         <SelectContent>
                           {students.map((s) => (
-                            <SelectItem key={s.email} value={s.name}>
+                            <SelectItem key={s.id} value={s.name}>
                               {s.name}
                             </SelectItem>
                           ))}
