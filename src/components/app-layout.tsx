@@ -13,9 +13,11 @@ import {
   SidebarMenuButton,
   SidebarInset,
   SidebarTrigger,
+  SidebarFooter,
 } from '@/components/ui/sidebar';
-import { BarChart3, BookOpen, LayoutDashboard, Shield, Target } from 'lucide-react';
+import { BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target } from 'lucide-react';
 import { Button } from './ui/button';
+import { AuthProvider, useAuth } from '@/hooks/use-auth';
 
 const navItems = [
   { href: '/', label: 'Anasayfa', icon: LayoutDashboard },
@@ -24,8 +26,13 @@ const navItems = [
   { href: '/admin', label: 'Admin Paneli', icon: Shield },
 ];
 
-export function AppLayout({ children }: { children: ReactNode }) {
+function LayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
+
+  if (!user) {
+    return <>{children}</>;
+  }
 
   return (
     <SidebarProvider>
@@ -62,6 +69,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
             ))}
           </SidebarMenu>
         </SidebarContent>
+        <SidebarFooter>
+           <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={logout}>
+                <LogOut/>
+                <span>Çıkış Yap</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+           </SidebarMenu>
+        </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
@@ -71,4 +88,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </SidebarInset>
     </SidebarProvider>
   );
+}
+
+
+export function AppLayout({ children }: { children: ReactNode }) {
+ return (
+  <AuthProvider>
+    <LayoutContent>{children}</LayoutContent>
+  </AuthProvider>
+ )
 }

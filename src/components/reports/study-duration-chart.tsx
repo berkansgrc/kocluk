@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import type { StudySession } from '@/lib/types';
 import { useMemo } from 'react';
-import { subDays, isAfter } from 'date-fns';
+import { subDays, isAfter, fromUnixTime } from 'date-fns';
 
 interface StudyDurationChartProps {
   studySessions: StudySession[];
@@ -27,7 +27,12 @@ const COLORS = [
 export default function StudyDurationChart({ studySessions }: StudyDurationChartProps) {
   const data = useMemo(() => {
     const thirtyDaysAgo = subDays(new Date(), 30);
-    const recentSessions = studySessions.filter((session) => isAfter(session.date, thirtyDaysAgo));
+    const recentSessions = studySessions.filter((session) => {
+       const sessionDate = session.date && typeof session.date.seconds === 'number'
+          ? fromUnixTime(session.date.seconds)
+          : session.date;
+      return isAfter(sessionDate, thirtyDaysAgo)
+    });
     
     const durationBySubject = recentSessions.reduce((acc, session) => {
       acc[session.subject] = (acc[session.subject] || 0) + session.durationInMinutes;

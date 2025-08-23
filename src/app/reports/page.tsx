@@ -1,10 +1,41 @@
-import { student } from '@/lib/mock-data';
+'use client';
+
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/hooks/use-auth';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 export default function ReportsPage() {
+  const { studentData, loading } = useAuth();
+
+  if (loading || !studentData) {
+    return (
+       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2">
+           <div>
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-96 mt-2" />
+          </div>
+        </div>
+        <Separator />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+          <div className="lg:col-span-3">
+             <Skeleton className="h-96 w-full" />
+          </div>
+          <div className="lg:col-span-2">
+             <Skeleton className="h-96 w-full" />
+          </div>
+        </div>
+        <div>
+          <Skeleton className="h-80 w-full" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -20,14 +51,14 @@ export default function ReportsPage() {
       <Separator />
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
         <div className="lg:col-span-3">
-          <SolvedQuestionsChart studySessions={student.studySessions} />
+          <SolvedQuestionsChart studySessions={studentData.studySessions || []} />
         </div>
         <div className="lg:col-span-2">
-          <StudyDurationChart studySessions={student.studySessions} />
+          <StudyDurationChart studySessions={studentData.studySessions || []} />
         </div>
       </div>
       <div>
-        <StrengthWeaknessMatrix studySessions={student.studySessions} />
+        <StrengthWeaknessMatrix studySessions={studentData.studySessions || []} />
       </div>
     </div>
   );

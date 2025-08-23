@@ -1,28 +1,57 @@
-import { student } from '@/lib/mock-data';
+'use client';
+
+import { useAuth } from '@/hooks/use-auth';
 import WelcomeHeader from '@/components/dashboard/welcome-header';
 import WeeklyProgress from '@/components/dashboard/weekly-progress';
 import StudySessionForm from '@/components/dashboard/study-session-form';
 import AIFeedback from '@/components/dashboard/ai-feedback';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {
+  const { user, studentData, loading } = useAuth();
+
+  if (loading || !studentData) {
+    return (
+       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2">
+          <div>
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-80 mt-2" />
+          </div>
+        </div>
+        <Separator />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="lg:col-span-2 space-y-6">
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+          <div className="lg:col-span-2">
+            <Skeleton className="h-80 w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <WelcomeHeader name={student.name} />
+      <WelcomeHeader name={studentData.name} />
       <Separator />
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <div className="lg:col-span-2 space-y-6">
           <WeeklyProgress
-            studySessions={student.studySessions}
-            weeklyGoal={student.weeklyQuestionGoal}
+            studySessions={studentData.studySessions || []}
+            weeklyGoal={studentData.weeklyQuestionGoal}
           />
           <AIFeedback
-            studentName={student.name}
-            studySessions={student.studySessions}
+            studentName={studentData.name}
+            studySessions={studentData.studySessions || []}
           />
         </div>
         <div className="lg:col-span-2">
-          <StudySessionForm />
+          <StudySessionForm studentId={studentData.id} />
         </div>
       </div>
     </div>

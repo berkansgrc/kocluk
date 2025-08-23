@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import type { StudySession } from '@/lib/types';
-import { startOfWeek, isAfter } from 'date-fns';
+import { startOfWeek, isAfter, fromUnixTime } from 'date-fns';
 import { useMemo } from 'react';
 
 interface WeeklyProgressProps {
@@ -24,7 +24,12 @@ export default function WeeklyProgress({
   const solvedThisWeek = useMemo(() => {
     const startOfThisWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
     return studySessions
-      .filter((session) => isAfter(session.date, startOfThisWeek))
+      .filter((session) => {
+        const sessionDate = session.date && typeof session.date.seconds === 'number'
+          ? fromUnixTime(session.date.seconds)
+          : session.date;
+        return isAfter(sessionDate, startOfThisWeek)
+      })
       .reduce((total, session) => total + session.questionsSolved, 0);
   }, [studySessions]);
 

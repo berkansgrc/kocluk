@@ -22,6 +22,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { useAuth } from '@/hooks/use-auth';
 
 const formSchema = z.object({
   subject: z.string().min(2, { message: 'Ders en az 2 karakter olmalıdır.' }),
@@ -33,8 +36,13 @@ const formSchema = z.object({
   path: ['questionsCorrect'],
 });
 
-export default function StudySessionForm() {
+interface StudySessionFormProps {
+  studentId: string;
+}
+
+export default function StudySessionForm({ studentId }: StudySessionFormProps) {
   const { toast } = useToast();
+  const { refreshStudentData } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,13 +54,42 @@ export default function StudySessionForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log('Yeni oturum kaydedildi:', values);
-    toast({
-      title: 'Oturum Kaydedildi!',
-      description: `${values.subject} çalışma oturumunuz kaydedildi.`,
-    });
-    form.reset();
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!studentId) {
+       toast({
+        title: 'Hata',
+        description: 'Oturum kaydedilemedi. Lütfen tekrar giriş yapın.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const newSession = {
+      ...values,
+      id: new Date().toISOString(), // Unique ID for the session
+      date: Timestamp.now(),
+    };
+    
+    try {
+      const studentDocRef = doc(db, 'students', studentId);
+      await updateDoc(studentDocRef, {
+        studySessions: arrayUnion(newSession)
+      });
+
+      toast({
+        title: 'Oturum Kaydedildi!',
+        description: `${values.subject} çalışma oturumunuz kaydedildi.`,
+      });
+      form.reset();
+      refreshStudentData(); // Refresh data after adding a new session
+    } catch (error) {
+       console.error("Oturum kaydedilirken hata:", error);
+       toast({
+        title: 'Hata',
+        description: 'Oturumunuz kaydedilirken bir sorun oluştu.',
+        variant: 'destructive',
+      });
+    }
   }
 
   return (

@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import type { StudySession } from '@/lib/types';
 import { useMemo } from 'react';
-import { subDays, format, eachDayOfInterval, isSameDay } from 'date-fns';
+import { subDays, format, eachDayOfInterval, isSameDay, fromUnixTime } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
 interface SolvedQuestionsChartProps {
@@ -24,7 +24,13 @@ export default function SolvedQuestionsChart({ studySessions }: SolvedQuestionsC
     const dateRange = eachDayOfInterval({ start: startDate, end: endDate });
 
     return dateRange.map((date) => {
-      const dailySessions = studySessions.filter((session) => isSameDay(session.date, date));
+      const dailySessions = studySessions.filter((session) => {
+        // Convert Firestore Timestamp to Date for comparison
+        const sessionDate = session.date && typeof session.date.seconds === 'number'
+          ? fromUnixTime(session.date.seconds)
+          : session.date;
+        return isSameDay(sessionDate, date)
+      });
       const total = dailySessions.reduce((sum, session) => sum + session.questionsSolved, 0);
       return {
         name: format(date, 'EEE', { locale: tr }),

@@ -1,6 +1,6 @@
 export interface StudySession {
   id: string;
-  date: Date;
+  date: any; // Allow Firestore Timestamp
   subject: string;
   durationInMinutes: number;
   questionsSolved: number;
@@ -8,6 +8,7 @@ export interface StudySession {
 }
 
 export interface Student {
+  id: string;
   name: string;
   email: string;
   weeklyQuestionGoal: number;
