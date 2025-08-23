@@ -18,21 +18,24 @@ import {
 import { BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target } from 'lucide-react';
 import { Button } from './ui/button';
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast'; // useToast hook'unu import et
 
 const navItems = [
-  { href: '/', label: 'Anasayfa', icon: LayoutDashboard },
-  { href: '/reports', label: 'Raporlarım', icon: BarChart3 },
-  { href: '/resources', label: 'Kaynaklar', icon: BookOpen },
-  { href: '/admin', label: 'Admin Paneli', icon: Shield },
+  { href: '/', label: 'Anasayfa', icon: LayoutDashboard, adminOnly: false },
+  { href: '/reports', label: 'Raporlarım', icon: BarChart3, adminOnly: false },
+  { href: '/resources', label: 'Kaynaklar', icon: BookOpen, adminOnly: false },
+  { href: '/admin', label: 'Admin Paneli', icon: Shield, adminOnly: true },
 ];
 
 function LayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
 
   if (!user) {
     return <>{children}</>;
   }
+
+  const visibleNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
   return (
     <SidebarProvider>
@@ -53,7 +56,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                   asChild

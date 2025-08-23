@@ -56,13 +56,16 @@ export default function LoginPage() {
       console.error(`${action} hatası:`, error);
       
       let errorMessage = 'Bir hata oluştu. Lütfen tekrar deneyin.';
-      if(error.message.includes('auth/invalid-credential')) {
+       if (error.message.includes('auth/invalid-credential')) {
         errorMessage = 'E-posta veya şifre hatalı.';
       } else if (error.message.includes('auth/email-already-in-use')) {
         errorMessage = 'Bu e-posta adresi zaten kullanılıyor.';
       } else if (error.message.includes('izniniz yok')) {
         errorMessage = error.message;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
+
 
       toast({
         title: 'Hata',
