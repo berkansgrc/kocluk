@@ -5,8 +5,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import type { Student } from '@/lib/types';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import type { Student, Assignment } from '@/lib/types';
 import WelcomeHeader from '@/components/dashboard/welcome-header';
 import WeeklyProgress from '@/components/dashboard/weekly-progress';
 import StudySessionForm from '@/components/dashboard/study-session-form';
@@ -17,6 +17,7 @@ import AssignmentsList from '@/components/dashboard/assignments-list';
 import DailyStreak from '@/components/dashboard/daily-streak';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import NotificationAlert from '@/components/dashboard/notification-alert';
 
 export default function DashboardPage() {
   const { user, loading: authLoading, isAdmin } = useAuth();
@@ -77,6 +78,40 @@ export default function DashboardPage() {
     setLoading(true);
     fetchStudentData();
   }
+
+  const clearNotifications = async () => {
+    if (!user || !studentData) return;
+
+    let hasChanges = false;
+    const updatedAssignments = (studentData.assignments || []).map(a => {
+        if (a.isNew) {
+            hasChanges = true;
+            return { ...a, isNew: false };
+        }
+        return a;
+    });
+
+    const updates: { assignments?: Assignment[], isPlanNew?: boolean } = {};
+
+    if (hasChanges) {
+        updates.assignments = updatedAssignments;
+    }
+    if (studentData.isPlanNew) {
+        hasChanges = true;
+        updates.isPlanNew = false;
+    }
+    
+    if (hasChanges) {
+        try {
+            const studentDocRef = doc(db, 'students', user.uid);
+            await updateDoc(studentDocRef, updates);
+            // Optimistically update local state to reflect the change immediately
+            setStudentData(prev => prev ? { ...prev, ...updates } : null);
+        } catch (error) {
+            console.error("Error clearing notifications:", error);
+        }
+    }
+};
 
 
   if (loading || authLoading) {
@@ -160,6 +195,7 @@ export default function DashboardPage() {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <WelcomeHeader name={studentData.name} />
+        <NotificationAlert student={studentData} onClear={clearNotifications} />
         <Separator />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2 space-y-6">

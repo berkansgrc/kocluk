@@ -1,11 +1,11 @@
 
 
-
 export interface Assignment {
   id: string;
   driveLink: string; 
   assignedAt: any; // Firestore Timestamp
   title: string;
+  isNew?: boolean;
 }
 
 export interface StudySession {
@@ -56,6 +56,5 @@ export interface Student {
   assignments?: Assignment[];
   resources?: Resource[];
   weeklyPlan?: WeeklyPlanItem[];
+  isPlanNew?: boolean;
 }
-
-    

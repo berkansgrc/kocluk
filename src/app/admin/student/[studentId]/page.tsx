@@ -279,6 +279,7 @@ export default function StudentDetailPage() {
       title: values.title,
       driveLink: values.driveLink,
       assignedAt: Timestamp.now(),
+      isNew: true,
     };
 
     try {
@@ -299,7 +300,7 @@ export default function StudentDetailPage() {
     if (!student || !editingAssignment) return;
     
     const updatedAssignments = (student.assignments || []).map(ass => 
-      ass.id === editingAssignment.id ? { ...ass, ...values, assignedAt: editingAssignment.assignedAt } : ass
+      ass.id === editingAssignment.id ? { ...ass, ...values, isNew: false, assignedAt: editingAssignment.assignedAt } : ass
     );
 
     try {
@@ -445,7 +446,10 @@ export default function StudentDetailPage() {
     if (!student) return;
     try {
       const studentDocRef = doc(db, 'students', student.id);
-      await updateDoc(studentDocRef, { weeklyPlan: values.plan });
+      await updateDoc(studentDocRef, { 
+        weeklyPlan: values.plan,
+        isPlanNew: true,
+      });
       toast({ title: 'Başarılı!', description: 'Haftalık plan kaydedildi ve öğrenciye atandı.' });
       setGeneratedPlan(null); // Clear the editing form
       fetchStudentAndSubjects(); // Refresh data
@@ -459,7 +463,7 @@ export default function StudentDetailPage() {
     if (!student) return;
     try {
       const studentDocRef = doc(db, 'students', student.id);
-      await updateDoc(studentDocRef, { weeklyPlan: [] });
+      await updateDoc(studentDocRef, { weeklyPlan: [], isPlanNew: false });
       toast({ title: 'Başarılı!', description: 'Haftalık plan silindi.' });
       fetchStudentAndSubjects();
     } catch (error) {
