@@ -8,6 +8,7 @@ import AIFeedback from '@/components/dashboard/ai-feedback';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import AssignmentsList from '@/components/dashboard/assignments-list';
+import DailyStreak from '@/components/dashboard/daily-streak';
 
 export default function DashboardPage() {
   const { user, studentData, loading, isAdmin } = useAuth();
@@ -55,10 +56,13 @@ export default function DashboardPage() {
         <Separator />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2 space-y-6">
-            <WeeklyProgress
-              studySessions={studentData.studySessions || []}
-              weeklyGoal={studentData.weeklyQuestionGoal}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <WeeklyProgress
+                studySessions={studentData.studySessions || []}
+                weeklyGoal={studentData.weeklyQuestionGoal}
+              />
+              <DailyStreak studySessions={studentData.studySessions || []} />
+            </div>
             <AIFeedback
               studentName={studentData.name}
               studySessions={studentData.studySessions || []}
