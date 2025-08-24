@@ -31,6 +31,7 @@ import {
   collection,
   getDocs,
   deleteDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -169,10 +170,13 @@ export default function AdminPage() {
       const tempAuthStudent = createTempAuth();
       const studentUserCredential = await createUserWithEmailAndPassword(tempAuthStudent, values.email, values.password);
       studentUser = studentUserCredential.user;
-  
-      // Create student document in Firestore
+
+      // Use a batch write to ensure all or nothing
+      const batch = writeBatch(db);
+
+      // 1. Create student document
       const studentDocRef = doc(db, 'students', studentUser.uid);
-      await setDoc(studentDocRef, {
+      batch.set(studentDocRef, {
         name: values.name,
         email: values.email,
         className: values.className || '',
@@ -182,6 +186,25 @@ export default function AdminPage() {
         parentEmail: values.parentEmail,
         parentId: parentUser.uid,
       });
+
+      // 2. Create student user document
+      const studentUserDocRef = doc(db, 'users', studentUser.uid);
+      batch.set(studentUserDocRef, {
+        uid: studentUser.uid,
+        email: values.email,
+        role: 'student',
+      });
+
+      // 3. Create parent user document
+      const parentUserDocRef = doc(db, 'users', parentUser.uid);
+      batch.set(parentUserDocRef, {
+        uid: parentUser.uid,
+        email: values.parentEmail,
+        role: 'parent',
+        studentId: studentUser.uid, // Link parent to student
+      });
+
+      await batch.commit();
   
       toast({
         title: 'Öğrenci ve Veli Eklendi!',
@@ -210,6 +233,10 @@ export default function AdminPage() {
   const handleDeleteStudent = async (studentId: string, studentName: string) => {
     setIsDeleting(studentId);
     try {
+      // Note: This only deletes the Firestore record.
+      // For a full deletion, you would also need to delete the user from Firebase Auth
+      // and potentially the parent user and their record in the 'users' collection.
+      // This requires backend logic (e.g., a Cloud Function) for security.
       await deleteDoc(doc(db, 'students', studentId));
       
       toast({
@@ -401,7 +428,7 @@ export default function AdminPage() {
                 <CardDescription>
                   Sistemde kayıtlı olan tüm öğrencilerin listesi ve durumları.
                   Detaylar için bir öğrenciye tıklayın.
-                </CardDescription>
+                </Description>
               </div>
             </div>
           </CardHeader>

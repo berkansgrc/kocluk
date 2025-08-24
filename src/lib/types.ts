@@ -1,6 +1,7 @@
 
 
 
+
 export interface Assignment {
   id: string;
   driveLink: string; 
@@ -61,6 +62,14 @@ export interface AchievementDefinition {
   description: string;
   icon: React.ElementType;
 }
+
+export interface AppUser {
+    uid: string;
+    email: string;
+    role: 'admin' | 'student' | 'parent';
+    studentId?: string; // only for parents
+}
+
 
 export interface Student {
   id: string;

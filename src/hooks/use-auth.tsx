@@ -15,7 +15,8 @@ import {
   onAuthStateChanged,
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
+import type { AppUser } from '@/lib/types';
 
 
 interface AuthContextType {
@@ -34,8 +35,6 @@ export const protectedRoutes = ['/', '/reports', '/resources', '/achievements', 
 export const adminRoutes = ['/admin', '/admin/student', '/admin/library'];
 export const parentRoutes = ['/parent/dashboard'];
 
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,25 +47,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       if (firebaseUser) {
         setUser(firebaseUser);
-        const isAdminUser = firebaseUser.email === ADMIN_EMAIL;
-        setIsAdmin(isAdminUser);
+        
+        // Check user role from 'users' collection
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
 
-        if (!isAdminUser) {
-          const studentsRef = collection(db, "students");
-          const q = query(studentsRef, where("parentEmail", "==", firebaseUser.email));
-          const querySnapshot = await getDocs(q);
-          
-          if (!querySnapshot.empty) {
-            setIsParent(true);
-            // Assuming one parent is linked to one student
-            setStudentIdForParent(querySnapshot.docs[0].id);
+        if (userDocSnap.exists()) {
+          const appUser = userDocSnap.data() as AppUser;
+          const userRole = appUser.role;
+
+          setIsAdmin(userRole === 'admin');
+          setIsParent(userRole === 'parent');
+
+          if (userRole === 'parent') {
+            setStudentIdForParent(appUser.studentId || null);
           } else {
-            setIsParent(false);
             setStudentIdForParent(null);
           }
         } else {
-          setIsParent(false);
-          setStudentIdForParent(null);
+            // This case might happen if a user is created in Auth but not in Firestore
+            // Or for the admin user who might not be in the 'users' collection
+             const isAdminUser = firebaseUser.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+             if (isAdminUser) {
+                setIsAdmin(true);
+                setIsParent(false);
+                setStudentIdForParent(null);
+             } else {
+                console.warn(`No user document found in Firestore for UID: ${firebaseUser.uid}`);
+                setIsAdmin(false);
+                setIsParent(false);
+                setStudentIdForParent(null);
+             }
         }
 
       } else {
