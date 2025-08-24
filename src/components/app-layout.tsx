@@ -74,17 +74,13 @@ function LayoutContent({ children }: { children: ReactNode }) {
   }, [user, isAdmin, isParent, loading, pathname, router, toast]);
 
   const isLoginPage = pathname === '/login';
-
-  if (loading) {
-    return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
-  }
   
-  if (!user && protectedRoutes.some(route => pathname.startsWith(route))) {
-     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
+  if (isLoginPage) {
+    return <>{children}</>;
   }
 
-  if(isLoginPage) {
-    return <>{children}</>;
+  if (loading || (!user && protectedRoutes.some(route => pathname.startsWith(route)))) {
+    return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
   
   const visibleNavItems = navItems.filter(item => {
