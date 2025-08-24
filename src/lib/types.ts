@@ -1,5 +1,6 @@
 
 
+
 export interface Assignment {
   id: string;
   driveLink: string; 
@@ -73,4 +74,7 @@ export interface Student {
   weeklyPlan?: WeeklyPlanItem[];
   isPlanNew?: boolean;
   unlockedAchievements?: string[];
+  // Veli bilgileri
+  parentId?: string;
+  parentEmail?: string;
 }

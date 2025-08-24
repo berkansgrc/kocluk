@@ -11,6 +11,7 @@ import WelcomeHeader from '@/components/dashboard/welcome-header';
 import WeeklyProgress from '@/components/dashboard/weekly-progress';
 import StudySessionForm from '@/components/dashboard/study-session-form';
 import AIFeedback from '@/components/dashboard/ai-feedback';
+import AIRiskAnalyzer from '@/components/dashboard/ai-risk-analyzer';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import AssignmentsList from '@/components/dashboard/assignments-list';
@@ -19,12 +20,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { achievementChecks, allAchievements } from '@/lib/achievements';
 import { Award } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
 
 export default function DashboardPage() {
-  const { user, loading: authLoading, isAdmin } = useAuth();
+  const { user, loading: authLoading, isAdmin, isParent } = useAuth();
   const { toast } = useToast();
   const [studentData, setStudentData] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   const checkAndAwardAchievements = useCallback(async (student: Student) => {
     if (!user) return;
@@ -50,7 +54,6 @@ export default function DashboardPage() {
         });
         setStudentData(prev => prev ? { ...prev, unlockedAchievements: updatedAchievements } : null);
         
-        // Toast for each new achievement
         for (const achievementId of newlyUnlocked) {
            const achievement = allAchievements.find(a => a.id === achievementId);
            if (achievement) {
@@ -67,11 +70,7 @@ export default function DashboardPage() {
   }, [user, toast]);
 
   const fetchStudentData = useCallback(async () => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-    if (isAdmin) {
+    if (!user || isAdmin || isParent) {
       setLoading(false);
       return;
     }
@@ -106,7 +105,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin, toast, checkAndAwardAchievements]);
+  }, [user, isAdmin, isParent, toast, checkAndAwardAchievements]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -215,13 +214,13 @@ export default function DashboardPage() {
   }
 
   if (isAdmin) {
-    return (
-      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <WelcomeHeader name="Admin" />
-        <Separator />
-        <p>Admin paneline hoş geldiniz. Öğrencileri ve uygulama ayarlarını yönetmek için lütfen Admin Paneli sayfasını ziyaret edin.</p>
-      </div>
-    );
+    router.push('/admin');
+    return null;
+  }
+  
+  if (isParent) {
+    router.push('/parent/dashboard');
+    return null;
   }
 
   if (studentData) {
@@ -239,6 +238,11 @@ export default function DashboardPage() {
               />
               <DailyStreak studySessions={studentData.studySessions || []} />
             </div>
+             <AIRiskAnalyzer 
+                studentName={studentData.name}
+                studySessions={studentData.studySessions || []}
+                weeklyGoal={studentData.weeklyQuestionGoal}
+              />
             <AIFeedback
               studentName={studentData.name}
               studySessions={studentData.studySessions || []}

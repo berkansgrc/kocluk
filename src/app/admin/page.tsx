@@ -65,6 +65,8 @@ const studentFormSchema = z.object({
     .email({ message: 'Lütfen geçerli bir e-posta adresi girin.' }),
   password: z.string().min(6, { message: 'Şifre en az 6 karakter olmalıdır.' }),
   className: z.string().optional(),
+  parentEmail: z.string().email({ message: 'Lütfen geçerli bir veli e-posta adresi girin.' }),
+  parentPassword: z.string().min(6, { message: 'Veli şifresi en az 6 karakter olmalıdır.' }),
 });
 
 export default function AdminPage() {
@@ -82,6 +84,8 @@ export default function AdminPage() {
       email: '',
       password: '',
       className: '',
+      parentEmail: '',
+      parentPassword: '',
     },
   });
 
@@ -144,25 +148,30 @@ export default function AdminPage() {
 
   async function onStudentSubmit(values: z.infer<typeof studentFormSchema>) {
     setIsSubmitting(true);
+    let studentUser, parentUser;
+  
     try {
-      // Firebase'in farklı yapılandırmalara sahip geçici bir kopyasını oluşturma
-      // Bu, mevcut admin oturumunu bozmadan yeni bir kullanıcı oluşturmayı sağlar.
       const { initializeApp } = await import('firebase/app');
       const { getAuth } = await import('firebase/auth');
-
-      const tempAppName = `temp-app-${Date.now()}`;
-      const tempApp = initializeApp(auth.app.options, tempAppName);
-      const tempAuth = getAuth(tempApp);
-
-      const userCredential = await createUserWithEmailAndPassword(
-        tempAuth,
-        values.email,
-        values.password
-      );
-      const newStudentUser = userCredential.user;
-
-      // Yeni öğrencinin UID'si ile Firestore'da belge oluşturma
-      const studentDocRef = doc(db, 'students', newStudentUser.uid);
+  
+      const createTempAuth = () => {
+        const tempAppName = `temp-app-${Date.now()}-${Math.random()}`;
+        const tempApp = initializeApp(auth.app.options, tempAppName);
+        return getAuth(tempApp);
+      };
+  
+      // Create Parent User
+      const tempAuthParent = createTempAuth();
+      const parentUserCredential = await createUserWithEmailAndPassword(tempAuthParent, values.parentEmail, values.parentPassword);
+      parentUser = parentUserCredential.user;
+  
+      // Create Student User
+      const tempAuthStudent = createTempAuth();
+      const studentUserCredential = await createUserWithEmailAndPassword(tempAuthStudent, values.email, values.password);
+      studentUser = studentUserCredential.user;
+  
+      // Create student document in Firestore
+      const studentDocRef = doc(db, 'students', studentUser.uid);
       await setDoc(studentDocRef, {
         name: values.name,
         email: values.email,
@@ -170,21 +179,23 @@ export default function AdminPage() {
         weeklyQuestionGoal: 100,
         studySessions: [],
         assignments: [],
+        parentEmail: values.parentEmail,
+        parentId: parentUser.uid,
       });
-
+  
       toast({
-        title: 'Öğrenci Eklendi!',
-        description: `${values.name} adlı öğrenci başarıyla oluşturuldu. Belirlediğiniz şifre ile giriş yapabilir.`,
+        title: 'Öğrenci ve Veli Eklendi!',
+        description: `${values.name} ve velisi başarıyla oluşturuldu.`,
       });
-
+  
       studentForm.reset();
       fetchStudents();
+  
     } catch (error: any) {
-      console.error('Öğrenci eklenirken hata: ', error);
-      let errorMessage = 'Öğrenci oluşturulurken bir sorun oluştu.';
+      console.error('Öğrenci/Veli eklenirken hata: ', error);
+      let errorMessage = 'Kullanıcı oluşturulurken bir sorun oluştu.';
       if (error.code === 'auth/email-already-in-use') {
-        errorMessage =
-          'Bu e-posta adresi zaten başka bir hesap tarafından kullanılıyor.';
+        errorMessage = 'Bu e-posta adreslerinden biri zaten başka bir hesap tarafından kullanılıyor.';
       }
       toast({
         title: 'Hata',
@@ -199,15 +210,13 @@ export default function AdminPage() {
   const handleDeleteStudent = async (studentId: string, studentName: string) => {
     setIsDeleting(studentId);
     try {
-      // Önce Firestore veritabanından öğrenci kaydını siliyoruz.
-      // Güvenlik kuralları sadece admin'in bu işlemi yapmasına izin verecek.
       await deleteDoc(doc(db, 'students', studentId));
       
       toast({
         title: 'Firestore Kaydı Silindi',
-        description: `${studentName} adlı öğrencinin veritabanı kaydı başarıyla silindi. Lütfen Firebase Authentication'dan da kullanıcıyı manuel olarak silmeyi unutmayın.`,
+        description: `${studentName} adlı öğrencinin veritabanı kaydı başarıyla silindi. Lütfen Firebase Authentication'dan da öğrenci ve veli kullanıcılarını manuel olarak silmeyi unutmayın.`,
       });
-      fetchStudents(); // Listeyi yenile
+      fetchStudents(); 
     } catch (error) {
       console.error('Öğrenci silinirken hata:', error);
       toast({
@@ -305,7 +314,7 @@ export default function AdminPage() {
               <UserPlus /> Yeni Öğrenci Ekle
             </CardTitle>
             <CardDescription>
-              Sisteme yeni bir öğrenci kaydedin.
+              Sisteme yeni bir öğrenci ve ilişkili veli hesabı kaydedin.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -314,60 +323,57 @@ export default function AdminPage() {
                 onSubmit={studentForm.handleSubmit(onStudentSubmit)}
                 className="space-y-6"
               >
-                <div className='grid md:grid-cols-2 gap-4'>
-                <FormField
-                  control={studentForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>İsim Soyisim</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Örn. Ahmet Yılmaz" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={studentForm.control}
-                  name="className"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sınıf</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Örn. 8-A (İsteğe Bağlı)" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className='grid md:grid-cols-2 gap-6'>
+                  <div className='space-y-4'>
+                    <h3 className='text-lg font-medium'>Öğrenci Bilgileri</h3>
+                    <FormField control={studentForm.control} name="name" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>İsim Soyisim</FormLabel>
+                        <FormControl><Input placeholder="Örn. Ahmet Yılmaz" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                    <FormField control={studentForm.control} name="className" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sınıf</FormLabel>
+                        <FormControl><Input placeholder="Örn. 8-A (İsteğe Bağlı)" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                    <FormField control={studentForm.control} name="email" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>E-posta Adresi</FormLabel>
+                        <FormControl><Input placeholder="ogrenci@eposta.com" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                    <FormField control={studentForm.control} name="password" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Başlangıç Şifresi</FormLabel>
+                        <FormControl><Input type="password" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                  </div>
+                  <div className='space-y-4'>
+                    <h3 className='text-lg font-medium'>Veli Bilgileri</h3>
+                     <FormField control={studentForm.control} name="parentEmail" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Veli E-posta Adresi</FormLabel>
+                        <FormControl><Input placeholder="veli@eposta.com" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                    <FormField control={studentForm.control} name="parentPassword" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Veli Başlangıç Şifresi</FormLabel>
+                        <FormControl><Input type="password" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                  </div>
                 </div>
-                <FormField
-                  control={studentForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>E-posta Adresi</FormLabel>
-                      <FormControl>
-                        <Input placeholder="ornek@eposta.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={studentForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Başlangıç Şifresi</FormLabel>
-                      <FormControl>
-                        <Input type="password" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                
                 <Button
                   type="submit"
                   className="w-full"
@@ -377,7 +383,7 @@ export default function AdminPage() {
                     'Ekleniyor...'
                   ) : (
                     <>
-                      <UserPlus className="mr-2 h-4 w-4" /> Öğrenciyi Ekle
+                      <UserPlus className="mr-2 h-4 w-4" /> Öğrenci ve Veliyi Ekle
                     </>
                   )}
                 </Button>
@@ -405,7 +411,7 @@ export default function AdminPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>İsim Soyisim</TableHead>
-                    <TableHead>E-posta Adresi</TableHead>
+                    <TableHead>Veli E-postası</TableHead>
                     <TableHead>Sınıf</TableHead>
                     <TableHead className="text-right">
                       Toplam Çözülen
@@ -443,7 +449,7 @@ export default function AdminPage() {
                             {student.name}
                           </TableCell>
                           <TableCell>
-                            {student.email}
+                            {student.parentEmail || student.email}
                           </TableCell>
                            <TableCell>
                             {student.className || '-'}
