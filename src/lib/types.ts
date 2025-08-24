@@ -1,4 +1,5 @@
 
+
 export interface Assignment {
   id: string;
   driveLink: string; 
@@ -23,6 +24,18 @@ export interface Resource {
   link: string;
   type: 'note' | 'exercise' | 'video';
 }
+
+export interface Topic {
+  id: string;
+  name: string;
+}
+
+export interface Subject {
+  id: string;
+  name: string;
+  topics: Topic[];
+}
+
 
 export interface Student {
   id: string;
