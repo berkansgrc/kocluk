@@ -17,7 +17,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Users } from 'lucide-react';
+import { BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library } from 'lucide-react';
 import { Button } from './ui/button';
 import { AuthProvider, useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -37,20 +37,25 @@ function LayoutContent({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading) return; // Wait for auth state to be determined
 
     const isAuthPage = pathname === '/login';
-    const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
-    const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
+    const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route)) || adminRoutes.some(route => pathname.startsWith(route));
 
-    if (!user && (isProtectedRoute || isAdminRoute)) {
+    // If not authenticated and trying to access a protected route, redirect to login
+    if (!user && isProtectedRoute) {
       router.push('/login');
+      return;
     }
 
+    // If authenticated and on the login page, redirect to home
     if (user && isAuthPage) {
       router.push('/');
+      return;
     }
-    
+
+    // If authenticated but not an admin, trying to access an admin route
+    const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
     if (user && !isAdmin && isAdminRoute) {
         toast({
           title: 'Erişim Engellendi',
@@ -59,16 +64,21 @@ function LayoutContent({ children }: { children: ReactNode }) {
         });
         router.push('/');
     }
-
   }, [user, isAdmin, loading, pathname, router, toast]);
 
-  if (loading) {
-     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
+  const isLoginPage = pathname === '/login';
+
+  // While loading, and not on the login page, show a loader.
+  // The login page can be rendered immediately.
+  if (loading && !isLoginPage) {
+    return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
 
-  if (!user) {
+  // If on the login page, or if there is no user and not on a protected route, render children (which would be the login page).
+  if (isLoginPage || !user) {
     return <>{children}</>;
   }
+
 
   const visibleNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
 

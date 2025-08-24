@@ -39,33 +39,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
   
-  const handleAuthStateChanged = useCallback(async (firebaseUser: User | null) => {
-    setLoading(true);
-    if (!firebaseUser) {
-      setUser(null);
-      setIsAdmin(false);
-    } else {
-      setUser(firebaseUser);
-      setIsAdmin(firebaseUser.email === ADMIN_EMAIL);
-    }
-    setLoading(false);
-  }, []);
-  
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, handleAuthStateChanged);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        setIsAdmin(firebaseUser.email === ADMIN_EMAIL);
+      } else {
+        setUser(null);
+        setIsAdmin(false);
+      }
+      setLoading(false);
+    });
+
+    // Cleanup subscription on unmount
     return () => unsubscribe();
-  }, [handleAuthStateChanged]);
+  }, []);
 
 
   const login = async (email: string, pass: string) => {
     await signInWithEmailAndPassword(auth, email, pass);
-    // onAuthStateChanged will handle the rest
+    // onAuthStateChanged will handle setting the user state
   };
 
   const logout = async () => {
     await signOut(auth);
-    setUser(null);
-    setIsAdmin(false);
     router.push('/login');
   };
   
