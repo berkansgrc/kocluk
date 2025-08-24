@@ -142,6 +142,14 @@ export default function AdminPage() {
     }
   }
 
+  const getStudentStats = (student: Student) => {
+    const totalSolved = student.studySessions?.reduce((acc, s) => acc + s.questionsSolved, 0) || 0;
+    const totalCorrect = student.studySessions?.reduce((acc, s) => acc + s.questionsCorrect, 0) || 0;
+    const totalDuration = student.studySessions?.reduce((acc, s) => acc + s.durationInMinutes, 0) || 0;
+    const averageAccuracy = totalSolved > 0 ? (totalCorrect / totalSolved) * 100 : 0;
+    return { totalSolved, averageAccuracy, totalDuration };
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -155,8 +163,8 @@ export default function AdminPage() {
         </div>
       </div>
       <Separator />
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+      <div className="grid gap-6">
+         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UserPlus /> Yeni Öğrenci Ekle
@@ -227,7 +235,7 @@ export default function AdminPage() {
               <Users /> Kayıtlı Öğrenciler
             </CardTitle>
             <CardDescription>
-              Sistemde kayıtlı olan tüm öğrencilerin listesi.
+              Sistemde kayıtlı olan tüm öğrencilerin listesi ve durumları.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -237,30 +245,39 @@ export default function AdminPage() {
                   <TableRow>
                     <TableHead>İsim Soyisim</TableHead>
                     <TableHead>E-posta Adresi</TableHead>
+                    <TableHead className="text-right">Toplam Çözülen</TableHead>
+                    <TableHead className="text-right">Ortalama Başarı</TableHead>
+                    <TableHead className="text-right">Toplam Süre (dk)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={2} className="text-center">
+                      <TableCell colSpan={5} className="text-center">
                         Yükleniyor...
                       </TableCell>
                     </TableRow>
                   ) : students.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={2} className="text-center">
+                      <TableCell colSpan={5} className="text-center">
                         Kayıtlı öğrenci bulunamadı.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    students.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell className="font-medium">
-                          {student.name}
-                        </TableCell>
-                        <TableCell>{student.email}</TableCell>
-                      </TableRow>
-                    ))
+                    students.map((student) => {
+                      const stats = getStudentStats(student);
+                      return (
+                        <TableRow key={student.id}>
+                          <TableCell className="font-medium">
+                            {student.name}
+                          </TableCell>
+                          <TableCell>{student.email}</TableCell>
+                          <TableCell className="text-right">{stats.totalSolved}</TableCell>
+                          <TableCell className="text-right">{stats.averageAccuracy.toFixed(1)}%</TableCell>
+                          <TableCell className="text-right">{stats.totalDuration}</TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
