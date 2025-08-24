@@ -2,8 +2,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import {
   SidebarProvider,
   Sidebar,
@@ -18,8 +19,8 @@ import {
 } from '@/components/ui/sidebar';
 import { BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Users } from 'lucide-react';
 import { Button } from './ui/button';
-import { AuthProvider, useAuth } from '@/hooks/use-auth';
-import { useToast } from '@/hooks/use-toast'; // useToast hook'unu import et
+import { AuthProvider, useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
 const navItems = [
   { href: '/', label: 'Anasayfa', icon: LayoutDashboard, adminOnly: false },
@@ -27,18 +28,54 @@ const navItems = [
   { href: '/resources', label: 'Kaynaklar', icon: BookOpen, adminOnly: false },
   { href: '/admin', label: 'Admin Paneli', icon: Shield, adminOnly: true },
   { href: '/admin/library', label: 'Kütüphane', icon: Library, adminOnly: true },
-  { href: '/admin/compare', label: 'Karşılaştır', icon: Users, adminOnly: true },
+  // Hidden from sidebar but part of routing logic
+  // { href: '/admin/compare', label: 'Karşılaştır', icon: Users, adminOnly: true },
 ];
 
 function LayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { user, logout, isAdmin } = useAuth();
+  const router = useRouter();
+  const { user, logout, isAdmin, loading } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const isAuthPage = pathname === '/login';
+    const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
+    const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
+
+    if (!user && (isProtectedRoute || isAdminRoute)) {
+      router.push('/login');
+    }
+
+    if (user && isAuthPage) {
+      router.push('/');
+    }
+    
+    if (user && !isAdmin && isAdminRoute) {
+        toast({
+          title: 'Erişim Engellendi',
+          description: 'Admin paneline erişim yetkiniz yok.',
+          variant: 'destructive',
+        });
+        router.push('/');
+    }
+
+  }, [user, isAdmin, loading, pathname, router, toast]);
+
+  if (loading) {
+     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
+  }
 
   if (!user) {
     return <>{children}</>;
   }
 
   const visibleNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
+
+  // Hide compare link from sidebar, it's accessed from the admin page
+  const sidebarNavItems = visibleNavItems.filter(item => item.href !== '/admin/compare');
 
   return (
     <SidebarProvider>
@@ -59,7 +96,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {visibleNavItems.map((item) => (
+            {sidebarNavItems.map((item) => (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                   asChild

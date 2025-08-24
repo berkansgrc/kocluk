@@ -16,8 +16,7 @@ import {
   onAuthStateChanged,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { useRouter, usePathname } from 'next/navigation';
-import { useToast } from './use-toast';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
@@ -29,8 +28,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const protectedRoutes = ['/', '/reports', '/resources'];
-const adminRoutes = ['/admin', '/admin/student', '/admin/library', '/admin/compare'];
+export const protectedRoutes = ['/', '/reports', '/resources'];
+export const adminRoutes = ['/admin', '/admin/student', '/admin/library', '/admin/compare'];
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
@@ -39,23 +38,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
-  const pathname = usePathname();
-  const { toast } = useToast();
-
+  
   const handleAuthStateChanged = useCallback(async (firebaseUser: User | null) => {
+    setLoading(true);
     if (!firebaseUser) {
       setUser(null);
       setIsAdmin(false);
-      setLoading(false);
-      return;
-    }
-    
-    setUser(firebaseUser);
-
-    if (firebaseUser.email === ADMIN_EMAIL) {
-      setIsAdmin(true);
     } else {
-      setIsAdmin(false);
+      setUser(firebaseUser);
+      setIsAdmin(firebaseUser.email === ADMIN_EMAIL);
     }
     setLoading(false);
   }, []);
@@ -65,47 +56,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, [handleAuthStateChanged]);
 
-  useEffect(() => {
-    if (loading) return;
-
-    const isAuthPage = pathname === '/login';
-    const isProtectedRoute = protectedRoutes.includes(pathname) || adminRoutes.some(route => pathname.startsWith(route));
-
-    if (!user && isProtectedRoute) {
-      router.push('/login');
-    }
-
-    if (user && isAuthPage) {
-      router.push('/');
-    }
-    
-    if (user && !isAdmin && adminRoutes.some(route => pathname.startsWith(route))) {
-        toast({
-          title: 'Erişim Engellendi',
-          description: 'Admin paneline erişim yetkiniz yok.',
-          variant: 'destructive',
-        });
-        router.push('/');
-    }
-
-  }, [user, isAdmin, loading, pathname, router, toast]);
 
   const login = async (email: string, pass: string) => {
-    setLoading(true);
-    try {
-      await signInWithEmailAndPassword(auth, email, pass);
-      // onAuthStateChanged will handle the rest
-    } catch(error) {
-      setLoading(false);
-      throw error;
-    }
+    await signInWithEmailAndPassword(auth, email, pass);
+    // onAuthStateChanged will handle the rest
   };
 
   const logout = async () => {
     await signOut(auth);
     setUser(null);
     setIsAdmin(false);
-    setLoading(false); // Explicitly set loading to false
     router.push('/login');
   };
   
