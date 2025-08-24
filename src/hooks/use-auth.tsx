@@ -30,7 +30,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const protectedRoutes = ['/', '/reports', '/resources'];
-const adminRoutes = ['/admin', '/admin/student', '/admin/library'];
+const adminRoutes = ['/admin', '/admin/student', '/admin/library', '/admin/compare'];
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
