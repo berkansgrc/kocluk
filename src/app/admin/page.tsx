@@ -108,6 +108,8 @@ export default function AdminPage() {
   async function onStudentSubmit(values: z.infer<typeof studentFormSchema>) {
     setIsSubmitting(true);
     try {
+      // Firebase'in farklı yapılandırmalara sahip geçici bir kopyasını oluşturma
+      // Bu, mevcut admin oturumunu bozmadan yeni bir kullanıcı oluşturmayı sağlar.
       const { initializeApp } = await import('firebase/app');
       const { getAuth } = await import('firebase/auth');
 
@@ -122,6 +124,7 @@ export default function AdminPage() {
       );
       const newStudentUser = userCredential.user;
 
+      // Yeni öğrencinin UID'si ile Firestore'da belge oluşturma
       const studentDocRef = doc(db, 'students', newStudentUser.uid);
       await setDoc(studentDocRef, {
         name: values.name,
@@ -158,17 +161,20 @@ export default function AdminPage() {
   const handleDeleteStudent = async (studentId: string, studentName: string) => {
     setIsDeleting(studentId);
     try {
+      // Önce Firestore veritabanından öğrenci kaydını siliyoruz.
+      // Güvenlik kuralları sadece admin'in bu işlemi yapmasına izin verecek.
       await deleteDoc(doc(db, 'students', studentId));
+      
       toast({
         title: 'Firestore Kaydı Silindi',
-        description: `${studentName} adlı öğrencinin veritabanı kaydı silindi. Lütfen Firebase Authentication'dan da kullanıcıyı silmeyi unutmayın.`,
+        description: `${studentName} adlı öğrencinin veritabanı kaydı başarıyla silindi. Lütfen Firebase Authentication'dan da kullanıcıyı manuel olarak silmeyi unutmayın.`,
       });
-      fetchStudents(); // Refresh the list
+      fetchStudents(); // Listeyi yenile
     } catch (error) {
       console.error('Öğrenci silinirken hata:', error);
       toast({
         title: 'Hata',
-        description: 'Öğrenci veritabanından silinirken bir sorun oluştu.',
+        description: 'Öğrenci veritabanından silinirken bir sorun oluştu. Güvenlik kurallarınızı kontrol edin.',
         variant: 'destructive',
       });
     } finally {
@@ -374,10 +380,9 @@ export default function AdminPage() {
                                   <AlertDialogDescription>
                                     Bu işlem geri alınamaz. Bu, {student.name}{' '}
                                     adlı öğrencinin verilerini sunucularımızdan
-                                    kalıcı olarak silecektir. Ayrıca, kimlik
-                                    doğrulama hesabını Firebase
-                                    Authentication'dan manuel olarak silmeniz
-                                    gerekir.
+                                    kalıcı olarak silecektir. Bu işlem kullanıcıyı 
+                                    Firebase Authentication'dan silmez,
+                                    oradan manuel olarak silmeniz gerekir.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>

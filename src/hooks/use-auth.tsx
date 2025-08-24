@@ -36,7 +36,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const protectedRoutes = ['/', '/reports', '/resources'];
-const adminRoute = '/admin';
+const adminRoutes = ['/admin', '/admin/student'];
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
@@ -57,9 +57,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    // Check if the user is the admin based on email
     if (firebaseUser.email === ADMIN_EMAIL) {
       setIsAdmin(true);
-      setStudentData(null); // Admin doesn't have student data
+      setStudentData(null); // Admin does not have student data
       setLoading(false);
       return;
     }
@@ -74,17 +75,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setStudentData({ id: studentDocSnap.id, ...data });
       } else {
         console.warn("No student data found for this user in Firestore. Logging out.");
-        // This case can happen if admin deletes user from DB but not from Auth.
-        // Forcing logout.
-        await signOut(auth);
+        await signOut(auth); // Force logout if no corresponding DB entry
       }
     } catch (error) {
       console.error("Error fetching student data:", error);
-      setStudentData(null);
+      toast({
+        title: 'Veri Hatası',
+        description: 'Öğrenci verileri alınamadı. Lütfen tekrar giriş yapın.',
+        variant: 'destructive',
+      });
+      await signOut(auth); // Force logout on error
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
   
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -100,25 +104,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (loading) return;
 
     const isAuthPage = pathname === '/login';
-    const isProtectedRoute = protectedRoutes.includes(pathname) || pathname.startsWith(adminRoute);
+    const isProtectedRoute = protectedRoutes.includes(pathname);
+    const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
 
-    if (!user && isProtectedRoute) {
-      router.push('/login');
-    } else if (user) {
-        if(isAuthPage) {
-          router.push('/');
-        } else if (pathname.startsWith(adminRoute) && !isAdmin) {
-            toast({
-            title: 'Erişim Engellendi',
-            description: 'Admin paneline erişim yetkiniz yok.',
-            variant: 'destructive',
-          });
-          router.push('/');
-        }
+    if (!user) {
+      // If not logged in and trying to access a protected or admin route
+      if (isProtectedRoute || isAdminRoute) {
+        router.push('/login');
+      }
+    } else {
+      // If logged in
+      if (isAuthPage) {
+        // and on login page, redirect to home
+        router.push('/');
+      } else if (isAdminRoute && !isAdmin) {
+        // and trying to access admin route as non-admin, redirect and show error
+        toast({
+          title: 'Erişim Engellendi',
+          description: 'Admin paneline erişim yetkiniz yok.',
+          variant: 'destructive',
+        });
+        router.push('/');
+      }
     }
   }, [user, isAdmin, loading, pathname, router, toast]);
 
-  const login = async (email: string, pass: string) => {
+  const login = (email: string, pass: string) => {
     return signInWithEmailAndPassword(auth, email, pass);
   };
 
