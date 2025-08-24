@@ -384,15 +384,18 @@ export default function StudentDetailPage() {
     setIsPlaning(true);
     toast({ title: 'Plan Oluşturuluyor...', description: 'Yapay zeka öğrencinin verilerini analiz ediyor, lütfen bekleyin.' });
     try {
-      // Pass the already-fetched data to the AI flow
-      // This avoids re-fetching and triggering security rule violations
+      const plainStudySessions = (student.studySessions || []).map(s => {
+        // AI flow doesn't need the date, and Timestamps aren't serializable
+        const { date, ...rest } = s; 
+        return {
+          ...rest,
+          topic: s.topic || 'Genel',
+        };
+      });
+
       const planInput = {
         studentName: student.name,
-        studySessions: (student.studySessions || []).map(s => ({
-          ...s,
-          // Ensure topic exists for the AI model
-          topic: s.topic || 'Genel',
-        })),
+        studySessions: plainStudySessions,
         subjects: subjects.map(s => s.name),
       };
 
@@ -876,24 +879,24 @@ export default function StudentDetailPage() {
             </div>
         </div>
         <div className="grid gap-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>
-              <CardDescription>Farklı derslerdeki ve konulardaki performansınızı analiz edin.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <StrengthWeaknessMatrix studySessions={filteredSessions} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Performans/Efor Matrisi</CardTitle>
-              <CardDescription>Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PerformanceEffortMatrix studySessions={filteredSessions} />
-            </CardContent>
-          </Card>
+            <Card>
+                <CardHeader>
+                <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>
+                <CardDescription>Farklı derslerdeki ve konulardaki performansınızı analiz edin.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                <StrengthWeaknessMatrix studySessions={filteredSessions} />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                <CardTitle>Performans/Efor Matrisi</CardTitle>
+                <CardDescription>Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                <PerformanceEffortMatrix studySessions={filteredSessions} />
+                </CardContent>
+            </Card>
         </div>
       </div>
     </div>
