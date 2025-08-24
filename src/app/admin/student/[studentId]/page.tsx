@@ -160,7 +160,7 @@ export default function StudentDetailPage() {
     fetchStudentAndSubjects();
   }, [fetchStudentAndSubjects]);
 
-   const { filteredSessions, dateRangeDisplay } = useMemo(() => {
+  const { filteredSessions, dateRangeDisplay } = useMemo(() => {
     if (!student || !student.studySessions) {
       return { filteredSessions: [], dateRangeDisplay: '' };
     }
@@ -384,14 +384,18 @@ export default function StudentDetailPage() {
     setIsPlaning(true);
     toast({ title: 'Plan Oluşturuluyor...', description: 'Yapay zeka öğrencinin verilerini analiz ediyor, lütfen bekleyin.' });
     try {
+      // Pass the already-fetched data to the AI flow
+      // This avoids re-fetching and triggering security rule violations
       const planInput = {
         studentName: student.name,
         studySessions: (student.studySessions || []).map(s => ({
           ...s,
+          // Ensure topic exists for the AI model
           topic: s.topic || 'Genel',
         })),
         subjects: subjects.map(s => s.name),
       };
+
       const result = await generateWeeklyPlan(planInput);
       
       const studentDocRef = doc(db, 'students', student.id);
@@ -400,7 +404,7 @@ export default function StudentDetailPage() {
       });
 
       toast({ title: 'Başarılı!', description: 'Haftalık çalışma planı oluşturuldu ve öğrenciye atandı.' });
-      fetchStudentAndSubjects(); // Refresh data
+      fetchStudentAndSubjects(); // Refresh data to show the new plan
 
     } catch (error) {
       console.error("Haftalık plan oluşturulurken hata:", error);
@@ -478,7 +482,8 @@ export default function StudentDetailPage() {
       </div>
       <Separator />
 
-       <h2 className="text-2xl font-bold tracking-tight mt-8">Haftalık Planlama</h2>
+      <div className='mt-6'>
+       <h2 className="text-2xl font-bold tracking-tight">Haftalık Planlama</h2>
         <Separator className="my-4" />
          <div className="grid gap-6 md:grid-cols-1">
            <Card>
@@ -525,61 +530,67 @@ export default function StudentDetailPage() {
             )}
            </Card>
         </div>
-
-      <h2 className="text-2xl font-bold tracking-tight mt-8">Öğrenci Ayarları</h2>
-        <Separator className="my-4" />
-        <div className="grid gap-6 md:grid-cols-1">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings /> Genel Ayarlar
-              </CardTitle>
-              <CardDescription>
-                Öğrencinin temel ayarlarını ve hedeflerini yönetin.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...settingsForm}>
-                <form onSubmit={settingsForm.handleSubmit(handleSettingsSubmit)} className="space-y-4">
-                  <div className='grid md:grid-cols-2 gap-4'>
-                  <FormField
-                    control={settingsForm.control}
-                    name="weeklyQuestionGoal"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Haftalık Soru Hedefi</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="100" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={settingsForm.control}
-                    name="className"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sınıf</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Örn: 8-A" {...field} value={field.value || ''}/>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={settingsForm.formState.isSubmitting}>
-                    {settingsForm.formState.isSubmitting ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </div>
+      </div>
 
 
-      <h2 className="text-2xl font-bold tracking-tight mt-8">Ödev Yönetimi</h2>
+      <div className='mt-8'>
+        <h2 className="text-2xl font-bold tracking-tight">Öğrenci Ayarları</h2>
+          <Separator className="my-4" />
+          <div className="grid gap-6 md:grid-cols-1">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings /> Genel Ayarlar
+                </CardTitle>
+                <CardDescription>
+                  Öğrencinin temel ayarlarını ve hedeflerini yönetin.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...settingsForm}>
+                  <form onSubmit={settingsForm.handleSubmit(handleSettingsSubmit)} className="space-y-4">
+                    <div className='grid md:grid-cols-2 gap-4'>
+                    <FormField
+                      control={settingsForm.control}
+                      name="weeklyQuestionGoal"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Haftalık Soru Hedefi</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="100" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={settingsForm.control}
+                      name="className"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sınıf</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Örn: 8-A" {...field} value={field.value || ''}/>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={settingsForm.formState.isSubmitting}>
+                      {settingsForm.formState.isSubmitting ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </div>
+      </div>
+
+
+
+      <div className='mt-8'>
+      <h2 className="text-2xl font-bold tracking-tight">Ödev Yönetimi</h2>
        <Separator className="my-4" />
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -734,6 +745,7 @@ export default function StudentDetailPage() {
             </CardContent>
         </Card>
       </div>
+      </div>
 
        <div className='mt-8'>
         <h2 className="text-2xl font-bold tracking-tight">Kaynakları Yönet</h2>
@@ -864,24 +876,24 @@ export default function StudentDetailPage() {
             </div>
         </div>
         <div className="grid gap-6 mt-6">
-            <Card>
-              <CardHeader>
-                  <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>
-                  <CardDescription>Farklı derslerdeki ve konulardaki performansınızı analiz edin.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <StrengthWeaknessMatrix studySessions={filteredSessions} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Performans/Efor Matrisi</CardTitle>
-                <CardDescription>Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PerformanceEffortMatrix studySessions={filteredSessions} />
-              </CardContent>
-            </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>
+              <CardDescription>Farklı derslerdeki ve konulardaki performansınızı analiz edin.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <StrengthWeaknessMatrix studySessions={filteredSessions} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Performans/Efor Matrisi</CardTitle>
+              <CardDescription>Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PerformanceEffortMatrix studySessions={filteredSessions} />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
