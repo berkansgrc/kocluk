@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as z from 'zod';
@@ -22,7 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, UserPlus, Users } from 'lucide-react';
+import { AreaChart, BadgePercent, GraduationCap, Trash2, UserPlus, Users } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import {
   doc,
@@ -32,7 +33,7 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import type { Student } from '@/lib/types';
 import {
   Table,
@@ -54,6 +55,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { startOfWeek, isAfter, fromUnixTime } from 'date-fns';
 
 const studentFormSchema = z.object({
   name: z.string().min(2, { message: 'İsim en az 2 karakter olmalıdır.' }),
@@ -106,6 +108,38 @@ export default function AdminPage() {
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
+
+  const dashboardStats = useMemo(() => {
+    const totalStudents = students.length;
+    let totalQuestionsSolved = 0;
+    let totalQuestionsCorrect = 0;
+    let totalQuestionsThisWeek = 0;
+
+    const startOfThisWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
+
+    students.forEach(student => {
+      (student.studySessions || []).forEach(session => {
+        totalQuestionsSolved += session.questionsSolved;
+        totalQuestionsCorrect += session.questionsCorrect;
+        
+        const sessionDate = session.date && typeof session.date.seconds === 'number'
+          ? fromUnixTime(session.date.seconds)
+          : new Date(session.date);
+        
+        if (isAfter(sessionDate, startOfThisWeek)) {
+          totalQuestionsThisWeek += session.questionsSolved;
+        }
+      });
+    });
+
+    const overallAccuracy = totalQuestionsSolved > 0 ? (totalQuestionsCorrect / totalQuestionsSolved) * 100 : 0;
+
+    return {
+      totalStudents,
+      totalQuestionsThisWeek,
+      overallAccuracy
+    };
+  }, [students]);
 
   async function onStudentSubmit(values: z.infer<typeof studentFormSchema>) {
     setIsSubmitting(true);
@@ -212,12 +246,58 @@ export default function AdminPage() {
             Admin Paneli
           </h1>
           <p className="text-muted-foreground">
-            Uygulama verilerini ve ayarlarını yönetin.
+            Uygulama verilerini ve genel istatistikleri yönetin.
           </p>
         </div>
       </div>
       <Separator />
-      <div className="grid gap-6">
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Toplam Öğrenci
+            </CardTitle>
+            <GraduationCap className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{dashboardStats.totalStudents}</div>
+            <p className="text-xs text-muted-foreground">
+              Sistemde kayıtlı aktif öğrenci sayısı
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Haftalık Çözülen Soru
+            </CardTitle>
+            <AreaChart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{dashboardStats.totalQuestionsThisWeek}</div>
+             <p className="text-xs text-muted-foreground">
+              Tüm öğrencilerin bu hafta çözdüğü toplam soru
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Genel Başarı Ortalaması</CardTitle>
+            <BadgePercent className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {dashboardStats.overallAccuracy.toFixed(1)}%
+            </div>
+             <p className="text-xs text-muted-foreground">
+              Tüm öğrencilerin genel başarı ortalaması
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 mt-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -439,5 +519,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    
