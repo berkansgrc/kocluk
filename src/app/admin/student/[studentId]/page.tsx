@@ -385,11 +385,12 @@ export default function StudentDetailPage() {
     toast({ title: 'Plan Oluşturuluyor...', description: 'Yapay zeka öğrencinin verilerini analiz ediyor, lütfen bekleyin.' });
     try {
       const plainStudySessions = (student.studySessions || []).map(s => {
-        // AI flow doesn't need the date, and Timestamps aren't serializable
         const { date, ...rest } = s; 
+        const accuracy = s.questionsSolved > 0 ? Math.round((s.questionsCorrect / s.questionsSolved) * 100) : 0;
         return {
           ...rest,
           topic: s.topic || 'Genel',
+          accuracy: accuracy,
         };
       });
 

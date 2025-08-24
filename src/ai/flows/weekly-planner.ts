@@ -22,6 +22,7 @@ const WeeklyPlanInputSchema = z.object({
       questionsSolved: z.number().describe('The number of questions solved.'),
       questionsCorrect: z.number().describe('The number of questions answered correctly.'),
       durationInMinutes: z.number().describe('The duration of the study session in minutes.'),
+      accuracy: z.number().describe('The accuracy percentage for the session.'),
     })
   ).describe('An array of recent study sessions for the student.'),
    subjects: z.array(z.string()).describe("List of all available subjects to include in the plan.")
@@ -54,7 +55,7 @@ Analyze the student's past performance from their study sessions to identify str
 
 Student's recent study sessions:
 {{#each studySessions}}
-- Ders: {{subject}}, Konu: {{topic}}, Süre: {{durationInMinutes}}dk, Çözülen Soru: {{questionsSolved}}, Doğru Sayısı: {{questionsCorrect}} (Başarı: {{~math questionsCorrect '/' questionsSolved '*' 100 round=0}}%)
+- Ders: {{subject}}, Konu: {{topic}}, Süre: {{durationInMinutes}}dk, Çözülen Soru: {{questionsSolved}}, Doğru Sayısı: {{questionsCorrect}} (Başarı: {{accuracy}}%)
 {{/each}}
 
 Available subjects to plan for: {{#each subjects}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
