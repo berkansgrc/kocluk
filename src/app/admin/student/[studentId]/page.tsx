@@ -33,7 +33,7 @@ const assignmentFormSchema = z.object({
 export default function StudentDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { isAdmin } = useAuth();
+  const { user } = useAuth(); // isAdmin kontrolünü merkezi hook'a bırakıyoruz.
   const { toast } = useToast();
   const studentId = params.studentId as string;
 
@@ -47,7 +47,7 @@ export default function StudentDetailPage() {
 
 
   useEffect(() => {
-    if (!studentId) return;
+    if (!studentId || !user) return;
     
     const fetchStudent = async () => {
       setLoading(true);
@@ -69,7 +69,7 @@ export default function StudentDetailPage() {
     };
     
     fetchStudent();
-  }, [studentId, toast, router]);
+  }, [studentId, toast, router, user]);
 
   const handleAssignmentSubmit = async (values: z.infer<typeof assignmentFormSchema>) => {
     if (!student) return;
@@ -113,10 +113,8 @@ export default function StudentDetailPage() {
     }
   };
 
-  if (!isAdmin) {
-    router.push('/');
-    return null;
-  }
+  // Yetki kontrolü artık useAuth hook'u tarafından yönetildiği için buradaki yönlendirme kaldırıldı.
+  // Bu, "render sırasında setState" hatasını çözer.
   
   if (loading || !student) {
     return (
