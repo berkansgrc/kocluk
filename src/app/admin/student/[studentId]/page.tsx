@@ -175,10 +175,17 @@ export default function StudentDetailPage() {
   const handleAssignmentDelete = async (assignmentToDelete: Assignment) => {
     if (!student) return;
 
+    // Find the full assignment object to be deleted, because Firestore arrayRemove needs the exact object.
+    const assignmentInState = (student.assignments || []).find(a => a.id === assignmentToDelete.id);
+    if (!assignmentInState) {
+        toast({ title: 'Hata', description: 'Silinecek ödev bulunamadı.', variant: 'destructive' });
+        return;
+    }
+
     try {
       const studentDocRef = doc(db, 'students', student.id);
       await updateDoc(studentDocRef, {
-        assignments: arrayRemove(assignmentToDelete)
+        assignments: arrayRemove(assignmentInState)
       });
       toast({ title: 'Başarılı!', description: 'Ödev başarıyla silindi.' });
       setStudent(prev => prev ? ({ ...prev, assignments: (prev.assignments || []).filter(a => a.id !== assignmentToDelete.id) }) : null);
@@ -570,7 +577,7 @@ export default function StudentDetailPage() {
                 <CardHeader>
                     <CardTitle>Atanmış Kaynaklar</CardTitle>
                     <CardDescription>Bu öğrenciye atanmış kaynakların listesi.</CardDescription>
-                </Header>
+                </CardHeader>
                 <CardContent>
                      {student.resources && student.resources.length > 0 ? (
                         <ul className="space-y-2">
