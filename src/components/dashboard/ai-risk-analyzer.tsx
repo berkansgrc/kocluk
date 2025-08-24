@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, ShieldAlert, Zap } from 'lucide-react';
 import type { StudySession } from '@/lib/types';
 import { Alert, AlertDescription } from '../ui/alert';
+import { fromUnixTime } from 'date-fns';
 
 interface AIRiskAnalyzerProps {
   studentName: string;
@@ -43,9 +44,20 @@ export default function AIRiskAnalyzer({ studentName, studySessions, weeklyGoal 
       }
       setLoading(true);
       try {
+        // Convert Firestore Timestamps to serializable ISO strings before sending to the server action.
+        const serializableSessions = studySessions.map(session => {
+          const date = session.date && typeof session.date.seconds === 'number'
+            ? fromUnixTime(session.date.seconds)
+            : new Date(session.date);
+          return {
+            ...session,
+            date: date.toISOString(),
+          };
+        });
+
         const input: RiskAnalyzerInput = {
           studentName,
-          studySessions,
+          studySessions: serializableSessions,
           weeklyGoal,
         };
         const result = await riskAnalyzer(input);
