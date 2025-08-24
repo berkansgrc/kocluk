@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import AssignmentsList from '@/components/dashboard/assignments-list';
 import DailyStreak from '@/components/dashboard/daily-streak';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export default function DashboardPage() {
   const { user, studentData, loading, isAdmin } = useAuth();
@@ -51,6 +53,7 @@ export default function DashboardPage() {
 
   // Öğrenci verisi mevcutsa öğrenci dashboard'ını göster
   if (studentData) {
+    const weeklyPlan = studentData.weeklyPlan || [];
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <WelcomeHeader name={studentData.name} />
@@ -74,6 +77,42 @@ export default function DashboardPage() {
             <StudySessionForm studentId={studentData.id} />
           </div>
         </div>
+         {weeklyPlan.length > 0 && (
+          <div className="pt-6">
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Bu Haftaki Çalışma Planın</CardTitle>
+                      <CardDescription>Koçun tarafından senin için özel olarak hazırlanan yol haritası.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      <div className="rounded-md border">
+                          <Table>
+                              <TableHeader>
+                                  <TableRow>
+                                      <TableHead>Gün</TableHead>
+                                      <TableHead>Ders</TableHead>
+                                      <TableHead>Konu</TableHead>
+                                      <TableHead>Hedef</TableHead>
+                                      <TableHead>Koçunun Notu</TableHead>
+                                  </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                  {weeklyPlan.map((item) => (
+                                      <TableRow key={item.day}>
+                                          <TableCell className="font-medium">{item.day}</TableCell>
+                                          <TableCell>{item.subject}</TableCell>
+                                          <TableCell>{item.topic}</TableCell>
+                                          <TableCell>{item.goal}</TableCell>
+                                          <TableCell className='text-muted-foreground italic'>{item.reason}</TableCell>
+                                      </TableRow>
+                                  ))}
+                              </TableBody>
+                          </Table>
+                      </div>
+                  </CardContent>
+              </Card>
+          </div>
+        )}
       </div>
     );
   }

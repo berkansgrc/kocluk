@@ -17,7 +17,7 @@ import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -84,6 +84,17 @@ const settingsFormSchema = z.object({
   className: z.string().optional(),
 });
 
+const weeklyPlanFormSchema = z.object({
+  plan: z.array(z.object({
+    day: z.string().min(1, "Gün boş olamaz"),
+    subject: z.string().min(1, "Ders boş olamaz"),
+    topic: z.string().min(1, "Konu boş olamaz"),
+    goal: z.string().min(1, "Hedef boş olamaz"),
+    reason: z.string(),
+  }))
+});
+
+
 type TimeRange = 'weekly' | 'monthly' | 'yearly' | 'all';
 
 export default function StudentDetailPage() {
@@ -99,6 +110,7 @@ export default function StudentDetailPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isPlaning, setIsPlaning] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [generatedPlan, setGeneratedPlan] = useState<WeeklyPlanItem[] | null>(null);
 
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -122,6 +134,23 @@ export default function StudentDetailPage() {
   const settingsForm = useForm<z.infer<typeof settingsFormSchema>>({
     resolver: zodResolver(settingsFormSchema),
   });
+
+  const planForm = useForm<z.infer<typeof weeklyPlanFormSchema>>({
+    resolver: zodResolver(weeklyPlanFormSchema),
+    defaultValues: { plan: [] },
+  });
+
+  const { fields, append, remove, update } = useFieldArray({
+    control: planForm.control,
+    name: "plan"
+  });
+
+  useEffect(() => {
+    if (generatedPlan) {
+      planForm.reset({ plan: generatedPlan });
+    }
+  }, [generatedPlan, planForm]);
+
 
   const fetchStudentAndSubjects = useCallback(async () => {
     // No need to set loading to true here, it is handled in the effect
@@ -157,6 +186,7 @@ export default function StudentDetailPage() {
 
   useEffect(() => {
     setLoading(true);
+    setGeneratedPlan(null); // Reset plan on student change
     fetchStudentAndSubjects();
   }, [fetchStudentAndSubjects]);
 
@@ -384,15 +414,15 @@ export default function StudentDetailPage() {
     setIsPlaning(true);
     toast({ title: 'Plan Oluşturuluyor...', description: 'Yapay zeka öğrencinin verilerini analiz ediyor, lütfen bekleyin.' });
     try {
-      const plainStudySessions = (student.studySessions || []).map(s => {
-        const { date, ...rest } = s; 
-        const accuracy = s.questionsSolved > 0 ? Math.round((s.questionsCorrect / s.questionsSolved) * 100) : 0;
-        return {
-          ...rest,
-          topic: s.topic || 'Genel',
-          accuracy: accuracy,
-        };
-      });
+        const plainStudySessions = (student.studySessions || []).map(s => {
+            const { date, ...rest } = s; 
+            const accuracy = s.questionsSolved > 0 ? Math.round((s.questionsCorrect / s.questionsSolved) * 100) : 0;
+            return {
+              ...rest,
+              topic: s.topic || 'Genel',
+              accuracy: accuracy,
+            };
+        });
 
       const planInput = {
         studentName: student.name,
@@ -402,13 +432,8 @@ export default function StudentDetailPage() {
 
       const result = await generateWeeklyPlan(planInput);
       
-      const studentDocRef = doc(db, 'students', student.id);
-      await updateDoc(studentDocRef, {
-        weeklyPlan: result.plan
-      });
-
-      toast({ title: 'Başarılı!', description: 'Haftalık çalışma planı oluşturuldu ve öğrenciye atandı.' });
-      fetchStudentAndSubjects(); // Refresh data to show the new plan
+      setGeneratedPlan(result.plan);
+      toast({ title: 'Taslak Plan Oluşturuldu', description: 'Plan aşağıdadır. Düzenleyip kaydedebilir veya iptal edebilirsiniz.' });
 
     } catch (error) {
       console.error("Haftalık plan oluşturulurken hata:", error);
@@ -418,6 +443,34 @@ export default function StudentDetailPage() {
     }
   };
   
+  const handleSavePlan = async (values: z.infer<typeof weeklyPlanFormSchema>) => {
+    if (!student) return;
+    try {
+      const studentDocRef = doc(db, 'students', student.id);
+      await updateDoc(studentDocRef, { weeklyPlan: values.plan });
+      toast({ title: 'Başarılı!', description: 'Haftalık plan kaydedildi ve öğrenciye atandı.' });
+      setGeneratedPlan(null); // Clear the editing form
+      fetchStudentAndSubjects(); // Refresh data
+    } catch (error) {
+      console.error("Plan kaydedilirken hata:", error);
+      toast({ title: 'Hata', description: 'Plan kaydedilirken bir sorun oluştu.', variant: 'destructive' });
+    }
+  };
+
+  const handleDeletePlan = async () => {
+    if (!student) return;
+    try {
+      const studentDocRef = doc(db, 'students', student.id);
+      await updateDoc(studentDocRef, { weeklyPlan: [] });
+      toast({ title: 'Başarılı!', description: 'Haftalık plan silindi.' });
+      fetchStudentAndSubjects();
+    } catch (error) {
+      console.error("Plan silinirken hata:", error);
+      toast({ title: 'Hata', description: 'Plan silinirken bir sorun oluştu.', variant: 'destructive' });
+    }
+  };
+
+
   const handleDownloadPdf = async () => {
     const element = reportRef.current;
     if (!element || !student) return;
@@ -486,14 +539,35 @@ export default function StudentDetailPage() {
       </div>
       <Separator />
 
-      <div className='mt-6'>
+       <div className='mt-6'>
        <h2 className="text-2xl font-bold tracking-tight">Haftalık Planlama</h2>
         <Separator className="my-4" />
          <div className="grid gap-6 md:grid-cols-1">
            <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bot /> Yapay Zeka Destekli Haftalık Çalışma Planı Oluştur
+              <CardTitle className="flex items-center gap-2 justify-between">
+                <span className='flex items-center gap-2'>
+                  <Bot /> Yapay Zeka Destekli Haftalık Çalışma Planı
+                </span>
+                {student.weeklyPlan && student.weeklyPlan.length > 0 && !generatedPlan && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm"><Trash2 className='w-4 h-4 mr-2'/> Planı Sil</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Bu işlem geri alınamaz. Öğrencinin mevcut haftalık planı kalıcı olarak silinecektir.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeletePlan}>Sil</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </CardTitle>
               <CardDescription>
                 Öğrencinin geçmiş performansını analiz ederek ona özel bir haftalık çalışma planı oluşturun.
@@ -502,34 +576,59 @@ export default function StudentDetailPage() {
             </CardHeader>
             <CardContent>
               <Button onClick={handleGeneratePlan} disabled={isPlaning}>
-                {isPlaning ? 'Plan Oluşturuluyor...' : 'Haftalık Plan Oluştur ve Ata'}
+                {isPlaning ? 'Plan Oluşturuluyor...' : 'Yeni Plan Oluştur'}
               </Button>
             </CardContent>
-            {student.weeklyPlan && student.weeklyPlan.length > 0 && (
-                <CardFooter className="flex-col items-start">
-                    <h3 className='text-lg font-semibold mb-2'>Mevcut Plan</h3>
-                     <div className="rounded-md border w-full">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Gün</TableHead>
-                                    <TableHead>Ders</TableHead>
-                                    <TableHead>Konu</TableHead>
-                                    <TableHead>Hedef</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {student.weeklyPlan.map((item, index) => (
-                                    <TableRow key={index}>
+
+            {(generatedPlan || (student.weeklyPlan && student.weeklyPlan.length > 0)) && (
+                <CardFooter className="flex-col items-start gap-4">
+                  
+                  <Form {...planForm}>
+                    <form onSubmit={planForm.handleSubmit(handleSavePlan)} className="w-full space-y-4">
+                        <h3 className='text-lg font-semibold mb-2'>{generatedPlan ? "Düzenlenebilir Taslak Plan" : "Mevcut Plan"}</h3>
+                        <div className="rounded-md border w-full">
+                          <Table>
+                              <TableHeader>
+                                  <TableRow>
+                                      <TableHead className="w-1/6">Gün</TableHead>
+                                      <TableHead className="w-1/6">Ders</TableHead>
+                                      <TableHead className="w-1/6">Konu</TableHead>
+                                      <TableHead className="w-2/6">Hedef</TableHead>
+                                      <TableHead className="w-2/6">Koç Notu</TableHead>
+                                  </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {fields.map((field, index) => (
+                                   <TableRow key={field.id}>
+                                     <TableCell><Input {...planForm.register(`plan.${index}.day`)} /></TableCell>
+                                     <TableCell><Input {...planForm.register(`plan.${index}.subject`)}/></TableCell>
+                                     <TableCell><Input {...planForm.register(`plan.${index}.topic`)} /></TableCell>
+                                     <TableCell><Input {...planForm.register(`plan.${index}.goal`)} /></TableCell>
+                                     <TableCell><Input {...planForm.register(`plan.${index}.reason`)} /></TableCell>
+                                   </TableRow>
+                                ))}
+                                {!generatedPlan && student.weeklyPlan?.map((item, index) => (
+                                     <TableRow key={index}>
                                         <TableCell className="font-medium">{item.day}</TableCell>
                                         <TableCell>{item.subject}</TableCell>
                                         <TableCell>{item.topic}</TableCell>
                                         <TableCell>{item.goal}</TableCell>
+                                        <TableCell className='text-muted-foreground italic'>{item.reason}</TableCell>
                                     </TableRow>
                                 ))}
-                            </TableBody>
-                        </Table>
-                    </div>
+                              </TableBody>
+                          </Table>
+                        </div>
+                        {generatedPlan && (
+                           <div className='flex gap-2 justify-end'>
+                             <Button type="button" variant="ghost" onClick={() => setGeneratedPlan(null)}>Vazgeç</Button>
+                             <Button type="submit" disabled={planForm.formState.isSubmitting}>
+                                {planForm.formState.isSubmitting ? "Kaydediliyor..." : "Planı Kaydet ve Ata"}
+                             </Button>
+                           </div>
+                        )}
+                    </form>
+                  </Form>
                 </CardFooter>
             )}
            </Card>
@@ -880,24 +979,24 @@ export default function StudentDetailPage() {
             </div>
         </div>
         <div className="grid gap-6 mt-6">
-            <Card>
-                <CardHeader>
-                <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>
-                <CardDescription>Farklı derslerdeki ve konulardaki performansınızı analiz edin.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                <StrengthWeaknessMatrix studySessions={filteredSessions} />
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                <CardTitle>Performans/Efor Matrisi</CardTitle>
-                <CardDescription>Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                <PerformanceEffortMatrix studySessions={filteredSessions} />
-                </CardContent>
-            </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>
+              <CardDescription>Farklı derslerdeki ve konulardaki performansınızı analiz edin.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <StrengthWeaknessMatrix studySessions={filteredSessions} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Performans/Efor Matrisi</CardTitle>
+              <CardDescription>Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PerformanceEffortMatrix studySessions={filteredSessions} />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
