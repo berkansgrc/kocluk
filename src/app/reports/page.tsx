@@ -4,51 +4,11 @@
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import PerformanceEffortMatrix from '@/components/reports/performance-effort-matrix';
-import type { FeedbackNote } from '@/lib/types';
-import { format } from 'date-fns';
-import { tr } from 'date-fns/locale';
-
-type ReportContext = FeedbackNote['reportContext'];
-
-const ReportCard: React.FC<{
-  title: string;
-  description: string;
-  context: ReportContext;
-  notes: FeedbackNote[];
-  children: React.ReactNode;
-}> = ({ title, description, context, notes, children }) => {
-  const relevantNotes = notes.filter(n => n.reportContext === context);
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {children}
-      </CardContent>
-      {relevantNotes.length > 0 && (
-        <CardFooter className='flex-col items-start gap-4 pt-4 border-t'>
-          <h4 className='font-semibold text-sm'>Koçun Notları</h4>
-          {relevantNotes.sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()).map(note => (
-            <div key={note.id} className='text-xs p-3 bg-amber-50 border border-amber-200 rounded-lg w-full'>
-              <p className='text-muted-foreground mb-2'>
-                {format(note.createdAt.toDate(), 'd MMMM yyyy, HH:mm', { locale: tr })}
-              </p>
-              <p>{note.text}</p>
-            </div>
-          ))}
-        </CardFooter>
-      )}
-    </Card>
-  )
-};
-
 
 export default function ReportsPage() {
   const { studentData, loading } = useAuth();
@@ -80,7 +40,6 @@ export default function ReportsPage() {
   }
   
   const studySessions = studentData.studySessions || [];
-  const feedbackNotes = studentData.feedbackNotes || [];
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -104,23 +63,28 @@ export default function ReportsPage() {
         </div>
       </div>
       <div className="grid gap-6 mt-6">
-        <ReportCard
-          title="Konu Güçlü & Zayıf Yön Matrisi"
-          description="Farklı derslerdeki ve konulardaki performansınızı analiz edin."
-          context="StrengthWeaknessMatrix"
-          notes={feedbackNotes}
-        >
-          <StrengthWeaknessMatrix studySessions={studySessions} />
-        </ReportCard>
-
-        <ReportCard
-          title="Performans/Efor Matrisi"
-          description="Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın."
-          context="PerformanceEffortMatrix"
-          notes={feedbackNotes}
-        >
-          <PerformanceEffortMatrix studySessions={studySessions} />
-        </ReportCard>
+        <Card>
+          <CardHeader>
+            <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>
+            <CardDescription>
+              Farklı derslerdeki ve konulardaki performansınızı analiz edin.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <StrengthWeaknessMatrix studySessions={studySessions} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Performans/Efor Matrisi</CardTitle>
+            <CardDescription>
+              Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PerformanceEffortMatrix studySessions={studySessions} />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

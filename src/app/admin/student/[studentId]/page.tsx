@@ -5,14 +5,14 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import type { Student, Assignment, Resource, StudySession, FeedbackNote } from '@/lib/types';
+import type { Student, Assignment, Resource, StudySession } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight, Download, MessageSquarePlus, MessageSquareX } from 'lucide-react';
+import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
@@ -82,13 +82,7 @@ const settingsFormSchema = z.object({
   className: z.string().optional(),
 });
 
-const feedbackFormSchema = z.object({
-  text: z.string().min(10, { message: 'Geri bildirim en az 10 karakter olmalıdır.' }),
-});
-
-
 type TimeRange = 'weekly' | 'monthly' | 'yearly' | 'all';
-type ReportContext = FeedbackNote['reportContext'];
 
 export default function StudentDetailPage() {
   const params = useParams();
@@ -101,8 +95,6 @@ export default function StudentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
-  const [isNoteDialogOpen, setNoteDialogOpen] = useState(false);
-  const [currentReportContext, setCurrentReportContext] = useState<ReportContext | null>(null);
 
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -125,10 +117,6 @@ export default function StudentDetailPage() {
 
   const settingsForm = useForm<z.infer<typeof settingsFormSchema>>({
     resolver: zodResolver(settingsFormSchema),
-  });
-
-  const feedbackForm = useForm<z.infer<typeof feedbackFormSchema>>({
-    resolver: zodResolver(feedbackFormSchema),
   });
 
   const fetchStudent = useCallback(async () => {
@@ -403,99 +391,6 @@ export default function StudentDetailPage() {
     toast({ title: 'Başarılı!', description: 'Rapor PDF olarak indirildi.' });
   };
   
-  const openFeedbackDialog = (context: ReportContext) => {
-    setCurrentReportContext(context);
-    setNoteDialogOpen(true);
-  };
-
-  const handleFeedbackSubmit = async (values: z.infer<typeof feedbackFormSchema>) => {
-    if (!student || !currentReportContext || !user?.displayName) return;
-
-    const newFeedback: FeedbackNote = {
-      id: new Date().toISOString(),
-      text: values.text,
-      reportContext: currentReportContext,
-      createdAt: Timestamp.now(),
-      author: user.displayName || 'Admin',
-    };
-
-    try {
-      const studentDocRef = doc(db, 'students', student.id);
-      await updateDoc(studentDocRef, {
-        feedbackNotes: arrayUnion(newFeedback)
-      });
-      toast({ title: 'Başarılı!', description: 'Not başarıyla eklendi.' });
-      feedbackForm.reset();
-      setNoteDialogOpen(false);
-      fetchStudent();
-    } catch (error) {
-       console.error("Geri bildirim eklenirken hata:", error);
-       toast({ title: 'Hata', description: 'Not eklenirken bir sorun oluştu.', variant: 'destructive' });
-    }
-  };
-
-  const handleFeedbackDelete = async (noteId: string) => {
-    if (!student) return;
-    const noteToDelete = (student.feedbackNotes || []).find(n => n.id === noteId);
-    if (!noteToDelete) return;
-
-    try {
-      const studentDocRef = doc(db, 'students', student.id);
-      await updateDoc(studentDocRef, {
-        feedbackNotes: arrayRemove(noteToDelete)
-      });
-      toast({ title: 'Başarılı!', description: 'Not silindi.' });
-      fetchStudent();
-    } catch (error) {
-      console.error("Not silinirken hata:", error);
-      toast({ title: 'Hata', description: 'Not silinirken bir sorun oluştu.', variant: 'destructive' });
-    }
-  };
-  
-  const ReportCard: React.FC<{
-    title: string;
-    description: string;
-    context: ReportContext;
-    children: React.ReactNode;
-  }> = ({ title, description, context, children }) => {
-    const notes = student?.feedbackNotes?.filter(n => n.reportContext === context) || [];
-    return (
-      <Card>
-        <CardHeader>
-          <div className='flex justify-between items-start'>
-            <div>
-              <CardTitle>{title}</CardTitle>
-              <CardDescription>{description}</CardDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => openFeedbackDialog(context)}>
-              <MessageSquarePlus className='mr-2 h-4 w-4'/> Not Ekle
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {children}
-        </CardContent>
-        {notes.length > 0 && (
-          <CardFooter className='flex-col items-start gap-4 pt-4 border-t'>
-            <h4 className='font-semibold text-sm'>Koçun Notları</h4>
-            {notes.sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()).map(note => (
-              <div key={note.id} className='text-xs p-3 bg-amber-50 border border-amber-200 rounded-lg w-full'>
-                <p className='text-muted-foreground mb-2'>
-                  {format(note.createdAt.toDate(), 'd MMMM yyyy, HH:mm', { locale: tr })}
-                  <Button variant='ghost' size='icon' className='h-6 w-6 float-right' onClick={() => handleFeedbackDelete(note.id)}>
-                    <MessageSquareX className='h-4 w-4 text-destructive' />
-                  </Button>
-                </p>
-                <p>{note.text}</p>
-              </div>
-            ))}
-          </CardFooter>
-        )}
-      </Card>
-    )
-  };
-
-
   if (loading || !student) {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -534,43 +429,6 @@ export default function StudentDetailPage() {
           </Button>
       </div>
       <Separator />
-
-      {/* Settings Dialog for Feedback */}
-      <Dialog open={isNoteDialogOpen} onOpenChange={setNoteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Geri Bildirim Notu Ekle</DialogTitle>
-            <DialogDescription>
-              Bu rapor bölümü için öğrenciye bir not bırakın. Bu not öğrencinin raporlar sayfasında görünecektir.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...feedbackForm}>
-            <form onSubmit={feedbackForm.handleSubmit(handleFeedbackSubmit)} className="space-y-4">
-              <FormField
-                control={feedbackForm.control}
-                name="text"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notunuz</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Örn: Bu konudaki ilerlemen harika, devam et!" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="secondary">İptal</Button>
-                </DialogClose>
-                <Button type="submit" disabled={feedbackForm.formState.isSubmitting}>
-                  {feedbackForm.formState.isSubmitting ? "Kaydediliyor..." : "Notu Kaydet"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
 
       <h2 className="text-2xl font-bold tracking-tight mt-8">Öğrenci Ayarları</h2>
         <Separator className="my-4" />
@@ -910,20 +768,24 @@ export default function StudentDetailPage() {
             </div>
         </div>
         <div className="grid gap-6 mt-6">
-            <ReportCard 
-              title="Konu Güçlü & Zayıf Yön Matrisi"
-              description="Farklı derslerdeki ve konulardaki performansınızı analiz edin."
-              context="StrengthWeaknessMatrix"
-            >
-              <StrengthWeaknessMatrix studySessions={filteredSessions} />
-            </ReportCard>
-             <ReportCard 
-              title="Performans/Efor Matrisi"
-              description="Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın."
-              context="PerformanceEffortMatrix"
-            >
-              <PerformanceEffortMatrix studySessions={filteredSessions} />
-            </ReportCard>
+            <Card>
+              <CardHeader>
+                  <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>
+                  <CardDescription>Farklı derslerdeki ve konulardaki performansınızı analiz edin.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <StrengthWeaknessMatrix studySessions={filteredSessions} />
+              </CardContent>
+            </Card>
+             <Card>
+              <CardHeader>
+                <CardTitle>Performans/Efor Matrisi</CardTitle>
+                <CardDescription>Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PerformanceEffortMatrix studySessions={filteredSessions} />
+              </CardContent>
+            </Card>
         </div>
       </div>
     </div>

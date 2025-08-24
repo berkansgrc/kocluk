@@ -83,7 +83,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             studySessions: data.studySessions || [],
             assignments: data.assignments || [],
             resources: data.resources || [],
-            feedbackNotes: data.feedbackNotes || [],
           };
           setStudentData(validatedData);
         } else {
