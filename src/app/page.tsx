@@ -25,11 +25,23 @@ import { AppLayout } from '@/components/app-layout';
 
 
 export default function DashboardPage() {
-  const { user, loading: authLoading, isAdmin, isParent } = useAuth();
+  const { user, loading: authLoading, isAdmin, isParent } from useAuth();
   const { toast } = useToast();
   const [studentData, setStudentData] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // Perform redirection in useEffect to avoid state updates during render
+  useEffect(() => {
+    if (authLoading) {
+      return; // Wait until auth state is determined
+    }
+    if (isAdmin) {
+      router.push('/admin');
+    } else if (isParent) {
+      router.push('/parent/dashboard');
+    }
+  }, [isAdmin, isParent, authLoading, router]);
 
   const checkAndAwardAchievements = useCallback(async (student: Student) => {
     if (!user) return;
@@ -151,7 +163,7 @@ export default function DashboardPage() {
   };
 
   const PageContent = () => {
-    if (loading || authLoading) {
+    if (loading || authLoading || isAdmin || isParent) {
       return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
           <div>
@@ -213,16 +225,6 @@ export default function DashboardPage() {
           </div>
         </div>
       );
-    }
-  
-    if (isAdmin) {
-      router.push('/admin');
-      return null;
-    }
-    
-    if (isParent) {
-      router.push('/parent/dashboard');
-      return null;
     }
   
     if (studentData) {
