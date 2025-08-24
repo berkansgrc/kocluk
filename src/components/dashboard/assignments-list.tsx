@@ -28,15 +28,9 @@ export default function AssignmentsList({ assignments }: AssignmentsListProps) {
               <li key={ass.id} className="text-sm p-2 border rounded-md flex justify-between items-center">
                 <span>{ass.title}</span>
                 <Button variant="outline" size="sm" asChild>
-                   {ass.driveLink ? (
-                     <a href={ass.driveLink} target="_blank" rel="noopener noreferrer">
-                        Görüntüle
-                     </a>
-                   ) : (
-                     <Link href={`/assignment/${ass.id}`}>
-                        Görüntüle
-                     </Link>
-                   )}
+                   <a href={ass.driveLink} target="_blank" rel="noopener noreferrer">
+                      Görüntüle
+                   </a>
                 </Button>
               </li>
             ))}

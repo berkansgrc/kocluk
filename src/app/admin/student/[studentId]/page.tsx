@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Wand2 } from 'lucide-react';
+import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap } from 'lucide-react';
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
@@ -26,17 +26,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import PerformanceEffortMatrix from '@/components/reports/performance-effort-matrix';
-import { generateAssignment } from '@/ai/flows/assignment-generator';
 
 const assignmentFormSchema = z.object({
   title: z.string().min(3, { message: 'Ödev başlığı en az 3 karakter olmalıdır.' }),
   driveLink: z.string().url({ message: 'Lütfen geçerli bir Google Drive linki girin.' }),
-});
-
-const aiAssignmentFormSchema = z.object({
-    subject: z.string().min(2, { message: 'Ders en az 2 karakter olmalıdır.' }),
-    topic: z.string().min(2, { message: 'Konu en az 2 karakter olmalıdır.' }),
-    questionCount: z.coerce.number().int().min(1, {message: 'En az 1 soru olmalı.'}).max(20, {message: 'En fazla 20 soru olabilir.'}),
 });
 
 const resourceFormSchema = z.object({
@@ -65,11 +58,6 @@ export default function StudentDetailPage() {
   const assignmentForm = useForm<z.infer<typeof assignmentFormSchema>>({
     resolver: zodResolver(assignmentFormSchema),
     defaultValues: { title: '', driveLink: '' },
-  });
-
-  const aiAssignmentForm = useForm<z.infer<typeof aiAssignmentFormSchema>>({
-    resolver: zodResolver(aiAssignmentFormSchema),
-    defaultValues: { subject: '', topic: '', questionCount: 5 },
   });
 
   const resourceForm = useForm<z.infer<typeof resourceFormSchema>>({
@@ -135,33 +123,6 @@ export default function StudentDetailPage() {
        toast({ title: 'Hata', description: 'Ödev atanırken bir sorun oluştu.', variant: 'destructive' });
     }
   }
-
-  const handleAiAssignmentSubmit = async (values: z.infer<typeof aiAssignmentFormSchema>) => {
-    if (!student) return;
-     try {
-       toast({ title: 'Ödev Oluşturuluyor...', description: 'Yapay zeka sizin için soruları hazırlıyor, lütfen bekleyin.' });
-      const result = await generateAssignment(values);
-
-      const newAssignment: Assignment = {
-        id: new Date().toISOString(),
-        title: `${values.subject} - ${values.topic} (Yapay Zeka)`,
-        content: result.assignmentContent,
-        assignedAt: Timestamp.now(),
-      };
-
-      const studentDocRef = doc(db, 'students', student.id);
-      await updateDoc(studentDocRef, {
-        assignments: arrayUnion(newAssignment)
-      });
-      toast({ title: 'Başarılı!', description: 'Yapay zeka ödevi başarıyla oluşturuldu ve öğrenciye atandı.' });
-      aiAssignmentForm.reset();
-      setStudent(prev => prev ? ({ ...prev, assignments: [...(prev.assignments || []), newAssignment] }) : null);
-
-    } catch (error) {
-      console.error("AI ödevi oluşturulurken hata:", error);
-      toast({ title: 'Hata', description: 'Yapay zeka ödevi oluşturulurken bir sorun oluştu.', variant: 'destructive' });
-    }
-  };
 
   const handleResourceSubmit = async (values: z.infer<typeof resourceFormSchema>) => {
     if (!student) return;
@@ -328,60 +289,8 @@ export default function StudentDetailPage() {
 
       <h2 className="text-2xl font-bold tracking-tight mt-8">Ödev Yönetimi</h2>
        <Separator className="my-4" />
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-         <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wand2 /> Yapay Zeka ile Ödev Oluştur
-              </CardTitle>
-              <CardDescription>
-                Konu ve soru sayısını belirterek anında kişiselleştirilmiş bir çalışma kağıdı oluşturun.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...aiAssignmentForm}>
-                <form onSubmit={aiAssignmentForm.handleSubmit(handleAiAssignmentSubmit)} className="space-y-4">
-                  <FormField
-                    control={aiAssignmentForm.control}
-                    name="subject"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ders</FormLabel>
-                        <FormControl><Input placeholder="Örn. Matematik" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={aiAssignmentForm.control}
-                    name="topic"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Konu</FormLabel>
-                        <FormControl><Input placeholder="Örn. Üslü Sayılar" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={aiAssignmentForm.control}
-                    name="questionCount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Soru Sayısı</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full" disabled={aiAssignmentForm.formState.isSubmitting}>
-                    {aiAssignmentForm.formState.isSubmitting ? 'Oluşturuluyor...' : 'Oluştur ve Ata'}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-        </Card>
-        <Card className="lg:col-span-1">
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
            <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileUp /> Manuel Ödev Gönder
@@ -422,7 +331,7 @@ export default function StudentDetailPage() {
               </Form>
             </CardContent>
         </Card>
-         <Card className="lg:col-span-1">
+         <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BookCheck /> Atanmış Ödevler
@@ -438,7 +347,7 @@ export default function StudentDetailPage() {
                     <li key={ass.id} className="text-sm p-2 border rounded-md flex justify-between items-center">
                       <span>{ass.title}</span>
                        <Button variant="outline" size="sm" asChild>
-                        <a href={ass.driveLink || `/assignment/${ass.id}`} target={ass.driveLink ? "_blank" : "_self"} rel="noopener noreferrer">
+                        <a href={ass.driveLink} target="_blank" rel="noopener noreferrer">
                           Görüntüle
                         </a>
                       </Button>

@@ -1,8 +1,7 @@
 
 export interface Assignment {
   id: string;
-  driveLink?: string; // Optional: for manual assignments
-  content?: string; // Optional: for AI-generated assignments
+  driveLink: string; 
   assignedAt: any; // Firestore Timestamp
   title: string;
 }
