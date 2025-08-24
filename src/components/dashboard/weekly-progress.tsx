@@ -25,10 +25,11 @@ export default function WeeklyProgress({
     const startOfThisWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
     return studySessions
       .filter((session) => {
+        // Handle both Timestamp and Date objects for flexibility
         const sessionDate = session.date && typeof session.date.seconds === 'number'
           ? fromUnixTime(session.date.seconds)
-          : session.date;
-        return isAfter(sessionDate, startOfThisWeek)
+          : new Date(session.date); // Fallback for string or other date formats
+        return sessionDate instanceof Date && !isNaN(sessionDate.valueOf()) && isAfter(sessionDate, startOfThisWeek)
       })
       .reduce((total, session) => total + session.questionsSolved, 0);
   }, [studySessions]);

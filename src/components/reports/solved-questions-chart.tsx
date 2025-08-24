@@ -28,8 +28,8 @@ export default function SolvedQuestionsChart({ studySessions }: SolvedQuestionsC
         // Convert Firestore Timestamp to Date for comparison
         const sessionDate = session.date && typeof session.date.seconds === 'number'
           ? fromUnixTime(session.date.seconds)
-          : session.date;
-        return isSameDay(sessionDate, date)
+          : new Date(session.date);
+        return sessionDate instanceof Date && !isNaN(sessionDate.valueOf()) && isSameDay(sessionDate, date);
       });
       const total = dailySessions.reduce((sum, session) => sum + session.questionsSolved, 0);
       return {

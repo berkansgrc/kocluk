@@ -30,8 +30,8 @@ export default function StudyDurationChart({ studySessions }: StudyDurationChart
     const recentSessions = studySessions.filter((session) => {
        const sessionDate = session.date && typeof session.date.seconds === 'number'
           ? fromUnixTime(session.date.seconds)
-          : session.date;
-      return isAfter(sessionDate, thirtyDaysAgo)
+          : new Date(session.date);
+      return sessionDate instanceof Date && !isNaN(sessionDate.valueOf()) && isAfter(sessionDate, thirtyDaysAgo)
     });
     
     const durationBySubject = recentSessions.reduce((acc, session) => {
