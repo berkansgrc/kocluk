@@ -13,10 +13,13 @@ import {
   signOut,
   signInWithEmailAndPassword,
   onAuthStateChanged,
+  createUserWithEmailAndPassword,
 } from 'firebase/auth';
 import { 
   doc,
   getDoc,
+  setDoc,
+  deleteDoc,
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
@@ -51,21 +54,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchStudentData = useCallback(async (firebaseUser: User | null) => {
     if (!firebaseUser) {
+      setUser(null);
       setStudentData(null);
       setIsAdmin(false);
       setLoading(false);
       return;
     }
 
-    // Check if the user is the admin based on email
+    // Set user first to avoid race conditions
+    setUser(firebaseUser);
+
     if (firebaseUser.email === ADMIN_EMAIL) {
       setIsAdmin(true);
-      setStudentData(null); // Admin does not have student data
+      setStudentData(null);
       setLoading(false);
       return;
     }
 
-    // Regular student user
     setIsAdmin(false);
     try {
       const studentDocRef = doc(db, 'students', firebaseUser.uid);
@@ -74,8 +79,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const data = studentDocSnap.data() as Omit<Student, 'id'>;
         setStudentData({ id: studentDocSnap.id, ...data });
       } else {
-        console.warn("No student data found for this user in Firestore. Logging out.");
-        await signOut(auth); // Force logout if no corresponding DB entry
+         console.warn("No student data found for this user in Firestore.");
+         // This might happen if admin creates auth user but firestore doc fails.
+         // For now, we treat them as a user with no specific student role.
+         setStudentData(null);
       }
     } catch (error) {
       console.error("Error fetching student data:", error);
@@ -84,41 +91,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: 'Öğrenci verileri alınamadı. Lütfen tekrar giriş yapın.',
         variant: 'destructive',
       });
-      await signOut(auth); // Force logout on error
+      await signOut(auth);
     } finally {
       setLoading(false);
     }
   }, [toast]);
   
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setLoading(true);
-      setUser(firebaseUser);
-      await fetchStudentData(firebaseUser);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setLoading(true); // Always start with loading true on auth state change
+      fetchStudentData(firebaseUser);
     });
 
     return () => unsubscribe();
   }, [fetchStudentData]);
 
+
   useEffect(() => {
-    if (loading) return;
+    // Wait until loading is false before doing any routing
+    if (loading) {
+      return;
+    }
 
     const isAuthPage = pathname === '/login';
     const isProtectedRoute = protectedRoutes.includes(pathname);
     const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
 
+    // If there's no user
     if (!user) {
-      // If not logged in and trying to access a protected or admin route
-      if (isProtectedRoute || isAdminRoute) {
+      // and they are not on the login page, redirect them there.
+      if (!isAuthPage) {
         router.push('/login');
       }
-    } else {
-      // If logged in
+    } 
+    // If there IS a user
+    else {
+      // and they are on the login page, redirect to home.
       if (isAuthPage) {
-        // and on login page, redirect to home
         router.push('/');
-      } else if (isAdminRoute && !isAdmin) {
-        // and trying to access admin route as non-admin, redirect and show error
+      }
+      // and they are trying to access an admin route but are not an admin
+      else if (isAdminRoute && !isAdmin) {
         toast({
           title: 'Erişim Engellendi',
           description: 'Admin paneline erişim yetkiniz yok.',
@@ -130,17 +143,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user, isAdmin, loading, pathname, router, toast]);
 
   const login = (email: string, pass: string) => {
+    setLoading(true);
     return signInWithEmailAndPassword(auth, email, pass);
   };
 
   const logout = async () => {
     setLoading(true);
     await signOut(auth);
-    setUser(null);
-    setStudentData(null);
-    setIsAdmin(false);
-    router.push('/login');
-    setLoading(false);
+    // onAuthStateChanged will handle setting user, studentData, isAdmin and loading state
   };
   
   const refreshStudentData = useCallback(() => {
