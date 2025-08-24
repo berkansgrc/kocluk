@@ -31,7 +31,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const protectedRoutes = ['/', '/reports', '/resources', '/achievements', '/parent/dashboard'];
+export const protectedRoutes = ['/', '/reports', '/resources', '/achievements'];
 export const adminRoutes = ['/admin', '/admin/student', '/admin/library'];
 export const parentRoutes = ['/parent/dashboard'];
 
@@ -65,19 +65,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setStudentIdForParent(null);
           }
         } else {
-            // This case might happen if a user is created in Auth but not in Firestore
-            // Or for the admin user who might not be in the 'users' collection
-             const isAdminUser = firebaseUser.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-             if (isAdminUser) {
-                setIsAdmin(true);
-                setIsParent(false);
-                setStudentIdForParent(null);
-             } else {
-                console.warn(`No user document found in Firestore for UID: ${firebaseUser.uid}`);
-                setIsAdmin(false);
-                setIsParent(false);
-                setStudentIdForParent(null);
-             }
+           // This is a fallback for the admin user who might not be in the 'users' collection.
+           const isAdminByEmail = firebaseUser.email === 'berkan_1225@hotmail.com';
+           if (isAdminByEmail) {
+              setIsAdmin(true);
+              setIsParent(false);
+           } else {
+              console.warn(`No user document found in Firestore for UID: ${firebaseUser.uid}`);
+              setIsAdmin(false);
+              setIsParent(false);
+           }
+           setStudentIdForParent(null);
         }
 
       } else {

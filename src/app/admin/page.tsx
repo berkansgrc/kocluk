@@ -152,24 +152,28 @@ export default function AdminPage() {
     let studentUser, parentUser;
   
     try {
-      const { initializeApp } = await import('firebase/app');
-      const { getAuth } = await import('firebase/auth');
-  
-      const createTempAuth = () => {
-        const tempAppName = `temp-app-${Date.now()}-${Math.random()}`;
+      // Firebase'in en son sürüm API'larını kullanmak için dinamik import
+      const { initializeApp, deleteApp } = await import('firebase/app');
+      const { getAuth, createUserWithEmailAndPassword } = await import('firebase/auth');
+      
+      const createTempAuth = (name: string) => {
+        const tempAppName = `${name}-${Date.now()}`;
         const tempApp = initializeApp(auth.app.options, tempAppName);
-        return getAuth(tempApp);
+        return { auth: getAuth(tempApp), app: tempApp };
       };
-  
-      // Create Parent User
-      const tempAuthParent = createTempAuth();
+
+      // Create Parent User in a temporary auth instance
+      const { auth: tempAuthParent, app: tempAppParent } = createTempAuth('parent-auth');
       const parentUserCredential = await createUserWithEmailAndPassword(tempAuthParent, values.parentEmail, values.parentPassword);
       parentUser = parentUserCredential.user;
-  
-      // Create Student User
-      const tempAuthStudent = createTempAuth();
+      await deleteApp(tempAppParent);
+      
+      // Create Student User in another temporary auth instance
+      const { auth: tempAuthStudent, app: tempAppStudent } = createTempAuth('student-auth');
       const studentUserCredential = await createUserWithEmailAndPassword(tempAuthStudent, values.email, values.password);
       studentUser = studentUserCredential.user;
+      await deleteApp(tempAppStudent);
+
 
       // Use a batch write to ensure all or nothing
       const batch = writeBatch(db);
@@ -187,7 +191,7 @@ export default function AdminPage() {
         parentId: parentUser.uid,
       });
 
-      // 2. Create student user document
+      // 2. Create student user document in 'users' collection
       const studentUserDocRef = doc(db, 'users', studentUser.uid);
       batch.set(studentUserDocRef, {
         uid: studentUser.uid,
@@ -195,7 +199,7 @@ export default function AdminPage() {
         role: 'student',
       });
 
-      // 3. Create parent user document
+      // 3. Create parent user document in 'users' collection
       const parentUserDocRef = doc(db, 'users', parentUser.uid);
       batch.set(parentUserDocRef, {
         uid: parentUser.uid,
