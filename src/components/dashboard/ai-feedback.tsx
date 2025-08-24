@@ -31,6 +31,7 @@ export default function AIFeedback({ studentName, studySessions }: AIFeedbackPro
           studentName,
           studySessions: studySessions.map(s => ({
             subject: s.subject,
+            topic: s.topic,
             questionsSolved: s.questionsSolved,
             questionsCorrect: s.questionsCorrect
           }))

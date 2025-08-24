@@ -10,6 +10,7 @@ export interface StudySession {
   id: string;
   date: any; // Allow Firestore Timestamp
   subject: string;
+  topic: string;
   durationInMinutes: number;
   questionsSolved: number;
   questionsCorrect: number;

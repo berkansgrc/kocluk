@@ -28,6 +28,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 const formSchema = z.object({
   subject: z.string().min(2, { message: 'Ders en az 2 karakter olmalıdır.' }),
+  topic: z.string().min(2, { message: 'Konu en az 2 karakter olmalıdır.' }),
   durationInMinutes: z.coerce.number().min(1, { message: 'Süre en az 1 dakika olmalıdır.' }),
   questionsSolved: z.coerce.number().min(0, { message: 'Negatif olamaz.' }),
   questionsCorrect: z.coerce.number().min(0, { message: 'Negatif olamaz.' }),
@@ -48,6 +49,7 @@ export default function StudySessionForm({ studentId }: StudySessionFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       subject: '',
+      topic: '',
       durationInMinutes: 0,
       questionsSolved: 0,
       questionsCorrect: 0,
@@ -78,7 +80,7 @@ export default function StudySessionForm({ studentId }: StudySessionFormProps) {
 
       toast({
         title: 'Oturum Kaydedildi!',
-        description: `${values.subject} çalışma oturumunuz kaydedildi.`,
+        description: `${values.subject} - ${values.topic} çalışma oturumunuz kaydedildi.`,
       });
       form.reset();
       refreshStudentData(); // Refresh data after adding a new session
@@ -103,19 +105,34 @@ export default function StudySessionForm({ studentId }: StudySessionFormProps) {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="subject"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ders</FormLabel>
-                  <FormControl>
-                    <Input placeholder="örn. Kalkülüs" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <FormField
+                control={form.control}
+                name="subject"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ders</FormLabel>
+                    <FormControl>
+                      <Input placeholder="örn. Matematik" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="topic"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Konu</FormLabel>
+                    <FormControl>
+                      <Input placeholder="örn. Türev" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField
                 control={form.control}

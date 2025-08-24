@@ -22,12 +22,13 @@ import { ArrowUpDown } from 'lucide-react';
 
 interface SubjectStats {
   subject: string;
+  topic: string;
   totalQuestions: number;
   totalMinutes: number;
   accuracy: number;
 }
 
-type SortKey = keyof Omit<SubjectStats, 'subject'>;
+type SortKey = keyof Omit<SubjectStats, 'subject' | 'topic'>;
 
 interface StrengthWeaknessMatrixProps {
   studySessions: StudySession[];
@@ -38,21 +39,25 @@ export default function StrengthWeaknessMatrix({ studySessions }: StrengthWeakne
 
   const subjectStats = useMemo(() => {
     const stats = studySessions.reduce((acc, session) => {
-      if (!acc[session.subject]) {
-        acc[session.subject] = {
+      const key = `${session.subject} - ${session.topic}`;
+      if (!acc[key]) {
+        acc[key] = {
+          subject: session.subject,
+          topic: session.topic,
           totalQuestions: 0,
           totalCorrect: 0,
           totalMinutes: 0,
         };
       }
-      acc[session.subject].totalQuestions += session.questionsSolved;
-      acc[session.subject].totalCorrect += session.questionsCorrect;
-      acc[session.subject].totalMinutes += session.durationInMinutes;
+      acc[key].totalQuestions += session.questionsSolved;
+      acc[key].totalCorrect += session.questionsCorrect;
+      acc[key].totalMinutes += session.durationInMinutes;
       return acc;
-    }, {} as Record<string, { totalQuestions: number; totalCorrect: number; totalMinutes: number }>);
+    }, {} as Record<string, { subject: string; topic: string; totalQuestions: number; totalCorrect: number; totalMinutes: number }>);
 
-    return Object.entries(stats).map(([subject, data]) => ({
-      subject,
+    return Object.values(stats).map((data) => ({
+      subject: data.subject,
+      topic: data.topic,
       totalQuestions: data.totalQuestions,
       totalMinutes: data.totalMinutes,
       accuracy: data.totalQuestions > 0 ? (data.totalCorrect / data.totalQuestions) * 100 : 0,
@@ -92,9 +97,9 @@ export default function StrengthWeaknessMatrix({ studySessions }: StrengthWeakne
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Ders Güçlü & Zayıf Yön Matrisi</CardTitle>
+        <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>
         <CardDescription>
-          Farklı derslerdeki performansınızı analiz edin. Geliştirilecek alanları bulmak için doğruluğa göre sıralayın.
+          Farklı derslerdeki ve konulardaki performansınızı analiz edin. Geliştirilecek alanları bulmak için doğruluğa göre sıralayın.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -103,6 +108,7 @@ export default function StrengthWeaknessMatrix({ studySessions }: StrengthWeakne
             <TableHeader>
               <TableRow>
                 <TableHead>Ders</TableHead>
+                <TableHead>Konu</TableHead>
                 <SortableHeader sortKey="totalQuestions" label="Çözülen Soru" />
                 <SortableHeader sortKey="totalMinutes" label="Harcanan Zaman (dk)" />
                 <SortableHeader sortKey="accuracy" label="Doğruluk" />
@@ -110,8 +116,9 @@ export default function StrengthWeaknessMatrix({ studySessions }: StrengthWeakne
             </TableHeader>
             <TableBody>
               {sortedStats.map((stat) => (
-                <TableRow key={stat.subject}>
+                <TableRow key={`${stat.subject}-${stat.topic}`}>
                   <TableCell className="font-medium">{stat.subject}</TableCell>
+                  <TableCell>{stat.topic}</TableCell>
                   <TableCell className="text-right">{stat.totalQuestions}</TableCell>
                   <TableCell className="text-right">{stat.totalMinutes}</TableCell>
                   <TableCell className="text-right">{stat.accuracy.toFixed(1)}%</TableCell>
