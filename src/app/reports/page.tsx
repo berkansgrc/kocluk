@@ -1,13 +1,12 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { Student, StudySession } from '@/lib/types';
-
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
@@ -15,12 +14,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import PerformanceEffortMatrix from '@/components/reports/performance-effort-matrix';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+  add,
+  format,
+  fromUnixTime,
+} from 'date-fns';
+import { tr } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+
+type TimeRange = 'weekly' | 'monthly' | 'yearly' | 'all';
 
 export default function ReportsPage() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [studySessions, setStudySessions] = useState<StudySession[]>([]);
+  const [studentData, setStudentData] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState<TimeRange>('all');
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   const fetchReportData = useCallback(async () => {
     if (!user) {
@@ -32,11 +50,10 @@ export default function ReportsPage() {
       const studentDocRef = doc(db, 'students', user.uid);
       const studentDocSnap = await getDoc(studentDocRef);
       if (studentDocSnap.exists()) {
-        const data = studentDocSnap.data();
-        setStudySessions(data.studySessions || []);
+        setStudentData(studentDocSnap.data() as Student);
       } else {
         console.warn("No student data found for this user in Firestore.");
-        setStudySessions([]);
+        setStudentData(null);
       }
     } catch (error) {
       console.error("Error fetching student data for reports:", error);
@@ -56,6 +73,76 @@ export default function ReportsPage() {
     }
   }, [authLoading, fetchReportData]);
 
+  const { filteredSessions, dateRangeDisplay } = useMemo(() => {
+    if (!studentData || !studentData.studySessions) {
+      return { filteredSessions: [], dateRangeDisplay: '' };
+    }
+  
+    const allSessions = studentData.studySessions.map(s => {
+      let sessionDate;
+      if (s.date && typeof s.date.seconds === 'number') {
+        sessionDate = fromUnixTime(s.date.seconds);
+      } else {
+        const parsedDate = new Date(s.date);
+        sessionDate = !isNaN(parsedDate.getTime()) ? parsedDate : null;
+      }
+      return { ...s, date: sessionDate };
+    }).filter(s => s.date instanceof Date);
+  
+    if (timeRange === 'all') {
+      return { filteredSessions: allSessions, dateRangeDisplay: 'Tüm Zamanlar' };
+    }
+  
+    let start: Date, end: Date;
+    switch (timeRange) {
+      case 'weekly':
+        start = startOfWeek(currentDate, { weekStartsOn: 1 });
+        end = endOfWeek(currentDate, { weekStartsOn: 1 });
+        break;
+      case 'monthly':
+        start = startOfMonth(currentDate);
+        end = endOfMonth(currentDate);
+        break;
+      case 'yearly':
+        start = startOfYear(currentDate);
+        end = endOfYear(currentDate);
+        break;
+      default:
+        return { filteredSessions: allSessions, dateRangeDisplay: 'Tüm Zamanlar' };
+    }
+    
+    const filtered = allSessions.filter(session => session.date && session.date >= start && session.date <= end);
+  
+    let display;
+    if (timeRange === 'weekly') {
+      display = `${format(start, 'd MMMM', { locale: tr })} - ${format(end, 'd MMMM yyyy', { locale: tr })}`;
+    } else if (timeRange === 'monthly') {
+      display = format(currentDate, 'MMMM yyyy', { locale: tr });
+    } else { // yearly
+      display = format(currentDate, 'yyyy', { locale: tr });
+    }
+  
+    return { filteredSessions: filtered, dateRangeDisplay: display };
+  }, [studentData, timeRange, currentDate]);
+
+  const handleTimeNav = (direction: 'prev' | 'next') => {
+    const amount = direction === 'prev' ? -1 : 1;
+    let newDate;
+    switch (timeRange) {
+      case 'weekly':
+        newDate = add(currentDate, { weeks: amount });
+        break;
+      case 'monthly':
+        newDate = add(currentDate, { months: amount });
+        break;
+      case 'yearly':
+        newDate = add(currentDate, { years: amount });
+        break;
+      default:
+        return;
+    }
+    setCurrentDate(newDate);
+  };
 
   if (loading || authLoading) {
     return (
@@ -95,12 +182,32 @@ export default function ReportsPage() {
       </div>
       <Separator />
 
+      <div className='flex flex-col items-center gap-4 py-4'>
+            <div className='flex items-center gap-2'>
+                <Button variant="outline" size="sm" onClick={() => { setTimeRange('weekly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'weekly' && 'bg-accent')}>Haftalık</Button>
+                <Button variant="outline" size="sm" onClick={() => { setTimeRange('monthly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'monthly' && 'bg-accent')}>Aylık</Button>
+                <Button variant="outline" size="sm" onClick={() => { setTimeRange('yearly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'yearly' && 'bg-accent')}>Yıllık</Button>
+                <Button variant="outline" size="sm" onClick={() => { setTimeRange('all'); setCurrentDate(new Date()); }} className={cn(timeRange === 'all' && 'bg-accent')}>Tümü</Button>
+            </div>
+            {timeRange !== 'all' && (
+                <div className='flex items-center gap-4'>
+                    <Button variant="ghost" size="icon" onClick={() => handleTimeNav('prev')}>
+                        <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <p className='text-lg font-semibold text-center w-64'>{dateRangeDisplay}</p>
+                    <Button variant="ghost" size="icon" onClick={() => handleTimeNav('next')}>
+                        <ChevronRight className="h-5 w-5" />
+                    </Button>
+                </div>
+            )}
+       </div>
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mt-6">
         <div className="lg:col-span-3">
-          <SolvedQuestionsChart studySessions={studySessions} />
+          <SolvedQuestionsChart studySessions={filteredSessions} />
         </div>
         <div className="lg:col-span-2">
-          <StudyDurationChart studySessions={studySessions} />
+          <StudyDurationChart studySessions={filteredSessions} />
         </div>
       </div>
       <div className="grid gap-6 mt-6">
@@ -112,7 +219,7 @@ export default function ReportsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <StrengthWeaknessMatrix studySessions={studySessions} />
+            <StrengthWeaknessMatrix studySessions={filteredSessions} />
           </CardContent>
         </Card>
         <Card>
@@ -123,7 +230,7 @@ export default function ReportsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <PerformanceEffortMatrix studySessions={studySessions} />
+            <PerformanceEffortMatrix studySessions={filteredSessions} />
           </CardContent>
         </Card>
       </div>
