@@ -26,8 +26,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import PerformanceEffortMatrix from '@/components/reports/performance-effort-matrix';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -474,17 +472,21 @@ export default function StudentDetailPage() {
   const handleDownloadPdf = async () => {
     const element = reportRef.current;
     if (!element || !student) return;
-
+  
     setIsDownloading(true);
     toast({ title: 'Rapor Oluşturuluyor...', description: 'Lütfen bekleyin, PDF dosyası hazırlanıyor.' });
-
+  
+    // Dynamically import libraries only when needed
+    const { default: jsPDF } = await import('jspdf');
+    const { default: html2canvas } = await import('html2canvas');
+  
     const canvas = await html2canvas(element, {
       scale: 2,
-      useCORS: true, 
+      useCORS: true,
       logging: false,
       backgroundColor: window.getComputedStyle(document.body).backgroundColor,
     });
-    
+  
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -493,7 +495,7 @@ export default function StudentDetailPage() {
     const ratio = canvasWidth / canvasHeight;
     const width = pdfWidth - 40;
     const height = width / ratio;
-
+  
     pdf.addImage(imgData, 'PNG', 20, 20, width, height);
     pdf.save(`${student.name.replace(' ', '_')}-Rapor-${dateRangeDisplay.replace(' ', '_')}.pdf`);
     setIsDownloading(false);
@@ -598,7 +600,7 @@ export default function StudentDetailPage() {
                                   </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {fields.map((field, index) => (
+                                {generatedPlan ? fields.map((field, index) => (
                                    <TableRow key={field.id}>
                                      <TableCell><Input {...planForm.register(`plan.${index}.day`)} /></TableCell>
                                      <TableCell><Input {...planForm.register(`plan.${index}.subject`)}/></TableCell>
@@ -606,8 +608,7 @@ export default function StudentDetailPage() {
                                      <TableCell><Input {...planForm.register(`plan.${index}.goal`)} /></TableCell>
                                      <TableCell><Input {...planForm.register(`plan.${index}.reason`)} /></TableCell>
                                    </TableRow>
-                                ))}
-                                {!generatedPlan && student.weeklyPlan?.map((item, index) => (
+                                )) : student.weeklyPlan?.map((item, index) => (
                                      <TableRow key={index}>
                                         <TableCell className="font-medium">{item.day}</TableCell>
                                         <TableCell>{item.subject}</TableCell>

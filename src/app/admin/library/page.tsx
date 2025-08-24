@@ -91,7 +91,8 @@ export default function LibraryPage() {
   });
 
   const fetchSubjects = useCallback(async () => {
-    setLoading(true);
+    // Prevent re-fetching if already loading
+    if (!loading) setLoading(true);
     try {
       const querySnapshot = await getDocs(collection(db, 'subjects'));
       const subjectsList = querySnapshot.docs.map((doc) => ({
@@ -109,11 +110,11 @@ export default function LibraryPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, loading]);
 
   useEffect(() => {
     fetchSubjects();
-  }, [fetchSubjects]);
+  }, []);
 
   async function onSubjectSubmit(values: z.infer<typeof subjectFormSchema>) {
     setIsSubmitting(true);
@@ -127,7 +128,7 @@ export default function LibraryPage() {
         description: `${values.name} dersi eklendi.`,
       });
       subjectForm.reset();
-      fetchSubjects();
+      await fetchSubjects();
     } catch (error) {
       console.error('Ders eklenirken hata:', error);
       toast({
@@ -147,7 +148,7 @@ export default function LibraryPage() {
       await updateDoc(subjectDocRef, { name: values.name });
       toast({ title: 'Başarılı!', description: 'Ders adı güncellendi.' });
       setEditingSubject(null);
-      fetchSubjects();
+      await fetchSubjects();
     } catch (error) {
         console.error("Ders güncellenirken hata:", error);
         toast({ title: 'Hata', description: 'Ders güncellenirken bir sorun oluştu.', variant: 'destructive' });
@@ -158,7 +159,7 @@ export default function LibraryPage() {
     try {
       await deleteDoc(doc(db, 'subjects', subjectId));
       toast({ title: 'Başarılı!', description: 'Ders silindi.' });
-      fetchSubjects();
+      await fetchSubjects();
     } catch (error) {
         console.error("Ders silinirken hata:", error);
         toast({ title: 'Hata', description: 'Ders silinirken bir sorun oluştu.', variant: 'destructive' });
@@ -178,7 +179,7 @@ export default function LibraryPage() {
         });
         toast({ title: 'Başarılı!', description: 'Konu eklendi.' });
         topicForm.reset();
-        fetchSubjects();
+        await fetchSubjects();
       } catch (error) {
          console.error("Konu eklenirken hata:", error);
          toast({ title: 'Hata', description: 'Konu eklenirken bir sorun oluştu.', variant: 'destructive' });
@@ -194,7 +195,7 @@ export default function LibraryPage() {
             topics: arrayRemove(topic)
         });
         toast({ title: 'Başarılı!', description: 'Konu silindi.' });
-        fetchSubjects();
+        await fetchSubjects();
       } catch (error) {
           console.error("Konu silinirken hata:", error);
           toast({ title: 'Hata', description: 'Konu silinirken bir sorun oluştu.', variant: 'destructive' });

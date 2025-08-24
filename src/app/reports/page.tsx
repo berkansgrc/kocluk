@@ -1,19 +1,63 @@
 
 'use client';
 
+import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import type { Student, StudySession } from '@/lib/types';
+
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import PerformanceEffortMatrix from '@/components/reports/performance-effort-matrix';
 
 export default function ReportsPage() {
-  const { studentData, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const [studySessions, setStudySessions] = useState<StudySession[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (loading || !studentData) {
+  const fetchReportData = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const studentDocRef = doc(db, 'students', user.uid);
+      const studentDocSnap = await getDoc(studentDocRef);
+      if (studentDocSnap.exists()) {
+        const data = studentDocSnap.data();
+        setStudySessions(data.studySessions || []);
+      } else {
+        console.warn("No student data found for this user in Firestore.");
+        setStudySessions([]);
+      }
+    } catch (error) {
+      console.error("Error fetching student data for reports:", error);
+      toast({
+        title: 'Veri Hatası',
+        description: 'Rapor verileri alınamadı.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, toast]);
+
+  useEffect(() => {
+    if (!authLoading) {
+      fetchReportData();
+    }
+  }, [authLoading, fetchReportData]);
+
+
+  if (loading || authLoading) {
     return (
        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
@@ -39,8 +83,6 @@ export default function ReportsPage() {
     )
   }
   
-  const studySessions = studentData.studySessions || [];
-
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">

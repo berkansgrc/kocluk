@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -24,7 +25,6 @@ import { useToast } from '@/hooks/use-toast';
 import { PlusCircle } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion, Timestamp, collection, getDocs } from 'firebase/firestore';
-import { useAuth } from '@/hooks/use-auth';
 import { useEffect, useState } from 'react';
 import type { Subject } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -43,11 +43,11 @@ const formSchema = z.object({
 
 interface StudySessionFormProps {
   studentId: string;
+  onSessionAdded: () => void;
 }
 
-export default function StudySessionForm({ studentId }: StudySessionFormProps) {
+export default function StudySessionForm({ studentId, onSessionAdded }: StudySessionFormProps) {
   const { toast } = useToast();
-  const { refreshStudentData } = useAuth();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
 
@@ -125,7 +125,7 @@ export default function StudySessionForm({ studentId }: StudySessionFormProps) {
         questionsCorrect: 0,
         questionsSolved: 0,
       });
-      refreshStudentData(); // Refresh data after adding a new session
+      onSessionAdded(); // Notify parent to re-fetch data
     } catch (error) {
        console.error("Oturum kaydedilirken hata:", error);
        toast({

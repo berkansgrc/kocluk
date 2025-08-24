@@ -1,6 +1,12 @@
 
 'use client';
 
+import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import type { Resource } from '@/lib/types';
 import {
   Card,
   CardContent,
@@ -10,9 +16,7 @@ import {
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { BookCopy, FileVideo, PencilRuler, ExternalLink } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Resource } from '@/lib/types';
 
 const iconMap = {
   note: BookCopy,
@@ -21,9 +25,47 @@ const iconMap = {
 };
 
 export default function ResourcesPage() {
-  const { studentData, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (loading || !studentData) {
+  const fetchResources = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const studentDocRef = doc(db, 'students', user.uid);
+      const studentDocSnap = await getDoc(studentDocRef);
+      if (studentDocSnap.exists()) {
+        const data = studentDocSnap.data();
+        setResources(data.resources || []);
+      } else {
+        console.warn("No student data found for this user in Firestore.");
+        setResources([]);
+      }
+    } catch (error) {
+      console.error("Error fetching resources:", error);
+      toast({
+        title: 'Veri Hatası',
+        description: 'Kaynaklar alınamadı.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, toast]);
+
+  useEffect(() => {
+    if (!authLoading) {
+      fetchResources();
+    }
+  }, [authLoading, fetchResources]);
+
+
+  if (loading || authLoading) {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
@@ -41,8 +83,6 @@ export default function ResourcesPage() {
       </div>
     )
   }
-  
-  const resources = studentData.resources || [];
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
