@@ -18,6 +18,11 @@ export default function NotificationAlert({ student, onClear }: NotificationAler
   const hasNewAssignment = student.assignments?.some(a => a.isNew);
   const hasNewPlan = student.isPlanNew;
 
+  const handleClose = () => {
+    setIsVisible(false);
+    onClear();
+  }
+
   useEffect(() => {
     if (hasNewAssignment || hasNewPlan) {
       setIsVisible(true);
@@ -37,11 +42,6 @@ export default function NotificationAlert({ student, onClear }: NotificationAler
     return null;
   }
 
-  const handleClose = () => {
-    setIsVisible(false);
-    onClear();
-  }
-
   return (
     <Alert className="mt-4 relative">
       <Megaphone className="h-4 w-4" />
@@ -58,5 +58,3 @@ export default function NotificationAlert({ student, onClear }: NotificationAler
     </Alert>
   );
 }
-
-    
