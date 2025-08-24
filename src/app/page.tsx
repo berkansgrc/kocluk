@@ -82,24 +82,64 @@ export default function DashboardPage() {
   if (loading || authLoading) {
     return (
        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <div className="flex items-center justify-between space-y-2">
           <div>
             <Skeleton className="h-8 w-64" />
             <Skeleton className="h-4 w-80 mt-2" />
           </div>
-        </div>
-        <Separator />
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <div className="lg:col-span-2 space-y-6">
-            <Skeleton className="h-40 w-full" />
-            <Skeleton className="h-40 w-full" />
-            <Skeleton className="h-40 w-full" />
+          <Separator />
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="lg:col-span-2 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card><CardHeader className='pb-2'><Skeleton className='h-7 w-24' /><Skeleton className='h-4 w-32 mt-1'/></CardHeader><CardContent><Skeleton className='h-4 w-24' /></CardContent></Card>
+                  <Card><CardHeader className='pb-2'><Skeleton className='h-7 w-24' /><Skeleton className='h-4 w-32 mt-1'/></CardHeader><CardContent><Skeleton className='h-4 w-24' /></CardContent></Card>
+                </div>
+                <Card>
+                    <CardHeader className="flex flex-row items-center gap-4">
+                        <Skeleton className='w-12 h-12 rounded-lg' />
+                        <div className='flex-1 space-y-1'>
+                            <Skeleton className="h-6 w-48" />
+                            <Skeleton className="h-4 w-64" />
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        <Skeleton className="h-4 w-[80%]" />
+                        <Skeleton className="h-4 w-[60%]" />
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <Skeleton className="h-6 w-40" />
+                        <Skeleton className="h-4 w-56" />
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                       <div className='flex items-center justify-between'><Skeleton className='h-5 w-32' /> <Skeleton className='h-8 w-20' /></div>
+                       <div className='flex items-center justify-between'><Skeleton className='h-5 w-24' /> <Skeleton className='h-8 w-20' /></div>
+                    </CardContent>
+                </Card>
+            </div>
+            <div className="lg:col-span-2">
+                <Card className="h-full">
+                    <CardHeader>
+                        <Skeleton className="h-6 w-56" />
+                        <Skeleton className="h-4 w-72" />
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                        <Skeleton className="h-10 w-full" />
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                        <Skeleton className="h-10 w-full" />
+                    </CardContent>
+                </Card>
+            </div>
           </div>
-          <div className="lg:col-span-2">
-            <Skeleton className="h-80 w-full" />
-          </div>
         </div>
-      </div>
     );
   }
 

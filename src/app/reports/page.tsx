@@ -60,14 +60,12 @@ export default function ReportsPage() {
   if (loading || authLoading) {
     return (
        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <div className="flex items-center justify-between space-y-2">
-           <div>
+          <div>
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-4 w-96 mt-2" />
           </div>
-        </div>
         <Separator />
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mt-6">
           <div className="lg:col-span-3">
              <Skeleton className="h-96 w-full" />
           </div>

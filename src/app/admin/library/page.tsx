@@ -228,12 +228,39 @@ export default function LibraryPage() {
   if (loading) {
       return (
           <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-80 mt-2" />
-            <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6'>
-                <Skeleton className="h-64 w-full" />
-                <Skeleton className="h-64 w-full" />
-                <Skeleton className="h-64 w-full" />
+            <div>
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-80 mt-2" />
+            </div>
+            <Card>
+                <CardHeader>
+                    <Skeleton className='h-6 w-48' />
+                </CardHeader>
+                <CardContent className='flex items-start gap-4'>
+                    <div className='flex-1 space-y-2'>
+                        <Skeleton className='h-5 w-32' />
+                        <Skeleton className='h-10 w-full' />
+                    </div>
+                     <div className='flex-1 space-y-2'>
+                        <Skeleton className='h-5 w-32' />
+                        <Skeleton className='h-10 w-full' />
+                    </div>
+                    <div className='self-end'>
+                        <Skeleton className='h-10 w-28' />
+                    </div>
+                </CardContent>
+            </Card>
+            <div className='space-y-8 mt-6'>
+                <Skeleton className='h-8 w-40' />
+                <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
+                    <Skeleton className='h-72 w-full' />
+                    <Skeleton className='h-72 w-full' />
+                    <Skeleton className='h-72 w-full' />
+                </div>
+                 <Skeleton className='h-8 w-40' />
+                <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
+                    <Skeleton className='h-72 w-full' />
+                </div>
             </div>
           </div>
       )

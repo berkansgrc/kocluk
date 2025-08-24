@@ -412,15 +412,15 @@ export default function StudentDetailPage() {
     setIsPlaning(true);
     toast({ title: 'Plan Oluşturuluyor...', description: 'Yapay zeka öğrencinin verilerini analiz ediyor, lütfen bekleyin.' });
     try {
-        const plainStudySessions = (student.studySessions || []).map(s => {
-            const { date, ...rest } = s; 
-            const accuracy = s.questionsSolved > 0 ? Math.round((s.questionsCorrect / s.questionsSolved) * 100) : 0;
-            return {
-              ...rest,
-              topic: s.topic || 'Genel',
-              accuracy: accuracy,
-            };
-        });
+      const plainStudySessions = (student.studySessions || []).map(s => {
+        const { date, ...rest } = s; 
+        const accuracy = s.questionsSolved > 0 ? Math.round((s.questionsCorrect / s.questionsSolved) * 100) : 0;
+        return {
+          ...rest,
+          topic: s.topic || 'Genel',
+          accuracy: accuracy,
+        };
+      });
 
       const planInput = {
         studentName: student.name,
@@ -505,13 +505,45 @@ export default function StudentDetailPage() {
   if (loading || !student) {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-80 mt-2" />
+        <div className='mb-4'>
+           <Skeleton className='h-7 w-24' />
+        </div>
+        <div className='flex items-center justify-between space-y-2'>
+            <div>
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-80 mt-2" />
+            </div>
+            <div>
+              <Skeleton className='h-10 w-64' />
+            </div>
+        </div>
         <Separator />
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
-          <div className="lg:col-span-3"><Skeleton className="h-96 w-full" /></div>
-          <div className="lg:col-span-2"><Skeleton className="h-96 w-full" /></div>
-          <div className="lg:col-span-5"><Skeleton className="h-80 w-full" /></div>
+         <div className='grid gap-6 mt-6'>
+            <Skeleton className='h-60 w-full' />
+            <Skeleton className='h-60 w-full' />
+            <div className='grid gap-6 md:grid-cols-2'>
+                <Skeleton className='h-80 w-full' />
+                <Skeleton className='h-80 w-full' />
+            </div>
+             <div className='grid gap-6 md:grid-cols-2'>
+                <Skeleton className='h-80 w-full' />
+                <Skeleton className='h-80 w-full' />
+            </div>
+            <div>
+                 <div className="flex items-center justify-between">
+                  <Skeleton className="h-8 w-48" />
+                  <Skeleton className="h-10 w-36" />
+                </div>
+                <Separator className="my-4" />
+                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mt-6">
+                    <div className="lg:col-span-3">
+                      <Skeleton className="h-96 w-full" />
+                    </div>
+                    <div className="lg:col-span-2">
+                      <Skeleton className="h-96 w-full" />
+                    </div>
+                </div>
+            </div>
         </div>
       </div>
     );
