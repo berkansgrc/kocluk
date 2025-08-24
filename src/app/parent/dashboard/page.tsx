@@ -27,9 +27,10 @@ import { allAchievements } from '@/lib/achievements';
 import { cn } from '@/lib/utils';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
 import { Badge } from '@/components/ui/badge';
+import { AppLayout } from '@/components/app-layout';
 
 
-export default function ParentDashboardPage() {
+function ParentDashboardPageContent() {
   const { user, loading: authLoading, studentIdForParent } = useAuth();
   const { toast } = useToast();
   const [studentData, setStudentData] = useState<Student | null>(null);
@@ -249,4 +250,13 @@ export default function ParentDashboardPage() {
 
     </div>
   );
+}
+
+
+export default function ParentDashboardPage() {
+    return (
+        <AppLayout>
+            <ParentDashboardPageContent />
+        </AppLayout>
+    )
 }

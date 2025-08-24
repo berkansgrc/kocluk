@@ -57,6 +57,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { startOfWeek, isAfter, fromUnixTime } from 'date-fns';
+import { AppLayout } from '@/components/app-layout';
 
 
 const studentFormSchema = z.object({
@@ -70,7 +71,7 @@ const studentFormSchema = z.object({
   parentPassword: z.string().min(6, { message: 'Veli şifresi en az 6 karakter olmalıdır.' }),
 });
 
-export default function AdminPage() {
+function AdminPageContent() {
   const { toast } = useToast();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -549,3 +550,13 @@ export default function AdminPage() {
     </div>
   );
 }
+
+
+export default function AdminPage() {
+    return (
+        <AppLayout>
+            <AdminPageContent />
+        </AppLayout>
+    )
+}
+

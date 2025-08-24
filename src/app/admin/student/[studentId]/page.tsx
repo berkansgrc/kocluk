@@ -64,6 +64,7 @@ import { cn } from '@/lib/utils';
 import { generateWeeklyPlan } from '@/ai/flows/weekly-planner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import PerformanceTrendChart from '@/components/reports/performance-trend-chart';
+import { AppLayout } from '@/components/app-layout';
 
 
 const assignmentFormSchema = z.object({
@@ -96,7 +97,7 @@ const weeklyPlanFormSchema = z.object({
 
 type TimeRange = 'weekly' | 'monthly' | 'yearly' | 'all';
 
-export default function StudentDetailPage() {
+function StudentDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -1048,4 +1049,12 @@ export default function StudentDetailPage() {
       </div>
     </div>
   );
+}
+
+export default function StudentDetailPage() {
+    return (
+        <AppLayout>
+            <StudentDetailPageContent />
+        </AppLayout>
+    )
 }

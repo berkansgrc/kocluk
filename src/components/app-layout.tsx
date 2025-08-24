@@ -44,46 +44,42 @@ function LayoutContent({ children }: { children: ReactNode }) {
       return; 
     }
 
-    const isAuthPage = pathname === '/login';
-    const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
-    const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
-    const isParentRoute = parentRoutes.some(route => pathname.startsWith(route));
+    const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route)) || 
+                           adminRoutes.some(route => pathname.startsWith(route)) ||
+                           parentRoutes.some(route => pathname.startsWith(route));
 
     if (!user && isProtectedRoute) {
       router.push('/login');
-    } else if (user && isAuthPage) {
-      router.push('/');
-    } else if (user && !isAdmin && isAdminRoute) {
-      toast({
-        title: 'Erişim Engellendi',
-        description: 'Admin paneline erişim yetkiniz yok.',
-        variant: 'destructive',
-      });
-      router.push('/');
-    } else if (user && !isParent && isParentRoute) {
-      toast({
-        title: 'Erişim Engellendi',
-        description: 'Veli paneline erişim yetkiniz yok.',
-        variant: 'destructive',
-      });
-      router.push('/');
-    } else if (user && isParent && !isParentRoute) {
-      router.push('/parent/dashboard');
+      return;
     }
+    
+    const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
+    const isParentRoute = parentRoutes.some(route => pathname.startsWith(route));
+
+    if (user) {
+        if (!isAdmin && isAdminRoute) {
+            toast({
+                title: 'Erişim Engellendi',
+                description: 'Admin paneline erişim yetkiniz yok.',
+                variant: 'destructive',
+            });
+            router.push('/');
+        } else if (!isParent && isParentRoute) {
+             toast({
+                title: 'Erişim Engellendi',
+                description: 'Veli paneline erişim yetkiniz yok.',
+                variant: 'destructive',
+            });
+            router.push('/');
+        } else if (isParent && !isParentRoute && !pathname.startsWith('/login')) {
+             router.push('/parent/dashboard');
+        }
+    }
+
 
   }, [user, isAdmin, isParent, loading, pathname, router, toast]);
 
-  const isLoginPage = pathname === '/login';
-  
-  if (isLoginPage) {
-    return <>{children}</>;
-  }
-
   if (loading) {
-    return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
-  }
-  
-  if (!user && protectedRoutes.some(route => pathname.startsWith(route))) {
     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
   

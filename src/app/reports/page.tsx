@@ -30,10 +30,11 @@ import {
 } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { AppLayout } from '@/components/app-layout';
 
 type TimeRange = 'weekly' | 'monthly' | 'yearly' | 'all';
 
-export default function ReportsPage() {
+function ReportsPageContent() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [studentData, setStudentData] = useState<Student | null>(null);
@@ -247,4 +248,12 @@ export default function ReportsPage() {
       </div>
     </div>
   );
+}
+
+export default function ReportsPage() {
+    return (
+        <AppLayout>
+            <ReportsPageContent />
+        </AppLayout>
+    )
 }

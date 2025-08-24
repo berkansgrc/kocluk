@@ -19,8 +19,9 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { CheckCircle } from 'lucide-react';
+import { AppLayout } from '@/components/app-layout';
 
-export default function AchievementsPage() {
+function AchievementsPageContent() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [studentData, setStudentData] = useState<Student | null>(null);
@@ -140,4 +141,13 @@ export default function AchievementsPage() {
       </div>
     </div>
   );
+}
+
+
+export default function AchievementsPage() {
+    return (
+        <AppLayout>
+            <AchievementsPageContent />
+        </AppLayout>
+    )
 }

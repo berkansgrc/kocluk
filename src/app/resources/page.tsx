@@ -17,6 +17,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { BookCopy, FileVideo, PencilRuler, ExternalLink } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AppLayout } from '@/components/app-layout';
 
 const iconMap = {
   note: BookCopy,
@@ -24,7 +25,7 @@ const iconMap = {
   video: FileVideo,
 };
 
-export default function ResourcesPage() {
+function ResourcesPageContent() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [resources, setResources] = useState<Resource[]>([]);
@@ -164,4 +165,12 @@ export default function ResourcesPage() {
       )}
     </div>
   );
+}
+
+export default function ResourcesPage() {
+    return (
+        <AppLayout>
+            <ResourcesPageContent />
+        </AppLayout>
+    )
 }

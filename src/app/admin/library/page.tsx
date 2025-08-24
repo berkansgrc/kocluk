@@ -67,6 +67,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { AppLayout } from '@/components/app-layout';
 
 const GRADE_LEVELS = ["5", "6", "7", "8", "9", "10", "11", "12", "YKS"];
 
@@ -80,7 +81,7 @@ const topicFormSchema = z.object({
 });
 
 
-export default function LibraryPage() {
+function LibraryPageContent() {
   const { toast } = useToast();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -470,4 +471,12 @@ export default function LibraryPage() {
       </div>
     </div>
   );
+}
+
+export default function LibraryPage() {
+    return (
+        <AppLayout>
+            <LibraryPageContent />
+        </AppLayout>
+    )
 }

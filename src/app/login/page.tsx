@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,8 +27,8 @@ const formSchema = z.object({
 });
 
 export default function LoginPage() {
-  const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login, user, loading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   
@@ -36,24 +36,30 @@ export default function LoginPage() {
       resolver: zodResolver(formSchema),
       defaultValues: { email: '', password: '' },
     });
+  
+  useEffect(() => {
+    // If user is already logged in, redirect them.
+    if (!loading && user) {
+      router.push('/');
+    }
+  }, [user, loading, router]);
+
 
   const handleLogin = async (values: z.infer<typeof formSchema>) => {
-    setLoading(true);
+    setIsSubmitting(true);
     try {
       await login(values.email, values.password);
       toast({
         title: 'Başarılı!',
-        description: 'Başarıyla giriş yaptınız.',
+        description: 'Başarıyla giriş yaptınız. Yönlendiriliyorsunuz...',
       });
-      router.push('/');
+      // The useEffect hook will handle the redirection.
     } catch (error: any) {
       console.error(`Giriş hatası:`, error);
       
       let errorMessage = 'Bir hata oluştu. Lütfen tekrar deneyin.';
        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         errorMessage = 'E-posta veya şifre hatalı.';
-      } else if (error.message) {
-        errorMessage = error.message;
       }
 
       toast({
@@ -62,9 +68,14 @@ export default function LoginPage() {
         variant: 'destructive',
       });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
+  
+  // Don't render the form if we are still checking auth state or if user exists
+  if (loading || user) {
+     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -93,8 +104,8 @@ export default function LoginPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button className="w-full" disabled={loading}>
-              {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
+            <Button className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
             </Button>
           </CardFooter>
         </form>
