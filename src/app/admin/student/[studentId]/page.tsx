@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
@@ -145,23 +145,31 @@ export default function StudentDetailPage() {
     fetchStudent();
   }, [studentId, toast, router, user, settingsForm]);
 
-    const { filteredSessions, dateRangeDisplay } = useMemo(() => {
+   const { filteredSessions, dateRangeDisplay } = useMemo(() => {
     if (!student || !student.studySessions) {
       return { filteredSessions: [], dateRangeDisplay: '' };
     }
-
-    const allSessions = student.studySessions.map(s => ({
-      ...s,
-      date: s.date && s.date.seconds ? fromUnixTime(s.date.seconds) : new Date(s.date)
-    })).filter(s => s.date instanceof Date && !isNaN(s.date.valueOf()));
-
-
+  
+    const allSessions = student.studySessions.map(s => {
+      let sessionDate;
+      if (s.date && typeof s.date.seconds === 'number') {
+        sessionDate = fromUnixTime(s.date.seconds);
+      } else {
+        // Fallback for older string-based dates
+        const parsedDate = new Date(s.date);
+        if (!isNaN(parsedDate.getTime())) {
+          sessionDate = parsedDate;
+        }
+      }
+      return { ...s, date: sessionDate };
+    }).filter(s => s.date instanceof Date && !isNaN(s.date.getTime()));
+  
     if (timeRange === 'all') {
       return { filteredSessions: allSessions, dateRangeDisplay: 'Tüm Zamanlar' };
     }
-
+  
     let start: Date, end: Date;
-
+  
     switch (timeRange) {
       case 'weekly':
         start = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -175,23 +183,26 @@ export default function StudentDetailPage() {
         start = startOfYear(currentDate);
         end = endOfYear(currentDate);
         break;
+      default:
+        // Should not happen, but as a fallback
+        return { filteredSessions: allSessions, dateRangeDisplay: 'Tüm Zamanlar' };
     }
     
     const filtered = allSessions.filter(session => {
         const sessionDate = session.date;
-        return sessionDate >= start && sessionDate <= end;
+        return sessionDate && sessionDate >= start && sessionDate <= end;
     });
-
-    let dateRangeDisplay;
+  
+    let display;
     if (timeRange === 'weekly') {
-      dateRangeDisplay = `${format(start, 'd MMMM', { locale: tr })} - ${format(end, 'd MMMM yyyy', { locale: tr })}`;
+      display = `${format(start, 'd MMMM', { locale: tr })} - ${format(end, 'd MMMM yyyy', { locale: tr })}`;
     } else if (timeRange === 'monthly') {
-      dateRangeDisplay = format(currentDate, 'MMMM yyyy', { locale: tr });
+      display = format(currentDate, 'MMMM yyyy', { locale: tr });
     } else { // yearly
-      dateRangeDisplay = format(currentDate, 'yyyy', { locale: tr });
+      display = format(currentDate, 'yyyy', { locale: tr });
     }
-
-    return { filteredSessions: filtered, dateRangeDisplay };
+  
+    return { filteredSessions: filtered, dateRangeDisplay: display };
   }, [student, timeRange, currentDate]);
 
   const handleTimeNav = (direction: 'prev' | 'next') => {
@@ -241,7 +252,7 @@ export default function StudentDetailPage() {
     if (!student || !editingAssignment) return;
     
     const updatedAssignments = (student.assignments || []).map(ass => 
-      ass.id === editingAssignment.id ? { ...ass, ...values } : ass
+      ass.id === editingAssignment.id ? { ...ass, ...values, assignedAt: editingAssignment.assignedAt } : ass
     );
 
     try {
@@ -427,7 +438,7 @@ export default function StudentDetailPage() {
                       <FormItem>
                         <FormLabel>Sınıf</FormLabel>
                         <FormControl>
-                          <Input placeholder="Örn: 8-A" {...field} />
+                          <Input placeholder="Örn: 8-A" {...field} value={field.value || ''}/>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -510,11 +521,12 @@ export default function StudentDetailPage() {
                         <Dialog onOpenChange={(open) => {
                             if (!open) {
                                 setEditingAssignment(null);
-                                editAssignmentForm.reset();
                             } else {
                                 setEditingAssignment(ass);
-                                editAssignmentForm.setValue('title', ass.title);
-                                editAssignmentForm.setValue('driveLink', ass.driveLink);
+                                editAssignmentForm.reset({
+                                  title: ass.title,
+                                  driveLink: ass.driveLink,
+                                });
                             }
                         }}>
                             <DialogTrigger asChild>
@@ -530,7 +542,7 @@ export default function StudentDetailPage() {
                                     </DialogDescription>
                                 </DialogHeader>
                                 <Form {...editAssignmentForm}>
-                                    <form id="edit-assignment-form" onSubmit={editAssignmentForm.handleSubmit(handleAssignmentEdit)} className="space-y-4">
+                                    <form id={`edit-assignment-form-${ass.id}`} onSubmit={editAssignmentForm.handleSubmit(handleAssignmentEdit)} className="space-y-4">
                                         <FormField
                                             control={editAssignmentForm.control}
                                             name="title"
@@ -559,7 +571,7 @@ export default function StudentDetailPage() {
                                     <DialogClose asChild>
                                         <Button type="button" variant="secondary">İptal</Button>
                                     </DialogClose>
-                                    <Button type="submit" form="edit-assignment-form" disabled={editAssignmentForm.formState.isSubmitting}>
+                                    <Button type="submit" form={`edit-assignment-form-${ass.id}`} disabled={editAssignmentForm.formState.isSubmitting}>
                                         {editAssignmentForm.formState.isSubmitting ? "Kaydediliyor..." : "Kaydet"}
                                     </Button>
                                 </DialogFooter>
@@ -692,10 +704,10 @@ export default function StudentDetailPage() {
 
        <div className='flex flex-col items-center gap-4 mt-4'>
             <div className='flex items-center gap-2'>
-                <Button variant="outline" size="sm" onClick={() => setTimeRange('weekly')} className={cn(timeRange === 'weekly' && 'bg-accent')}>Haftalık</Button>
-                <Button variant="outline" size="sm" onClick={() => setTimeRange('monthly')} className={cn(timeRange === 'monthly' && 'bg-accent')}>Aylık</Button>
-                <Button variant="outline" size="sm" onClick={() => setTimeRange('yearly')} className={cn(timeRange === 'yearly' && 'bg-accent')}>Yıllık</Button>
-                <Button variant="outline" size="sm" onClick={() => setTimeRange('all')} className={cn(timeRange === 'all' && 'bg-accent')}>Tümü</Button>
+                <Button variant="outline" size="sm" onClick={() => { setTimeRange('weekly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'weekly' && 'bg-accent')}>Haftalık</Button>
+                <Button variant="outline" size="sm" onClick={() => { setTimeRange('monthly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'monthly' && 'bg-accent')}>Aylık</Button>
+                <Button variant="outline" size="sm" onClick={() => { setTimeRange('yearly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'yearly' && 'bg-accent')}>Yıllık</Button>
+                <Button variant="outline" size="sm" onClick={() => { setTimeRange('all'); setCurrentDate(new Date()); }} className={cn(timeRange === 'all' && 'bg-accent')}>Tümü</Button>
             </div>
             {timeRange !== 'all' && (
                 <div className='flex items-center gap-4'>
@@ -725,3 +737,5 @@ export default function StudentDetailPage() {
     </div>
   );
 }
+
+    
