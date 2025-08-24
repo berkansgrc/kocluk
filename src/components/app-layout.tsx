@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -15,7 +16,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library } from 'lucide-react';
+import { BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast'; // useToast hook'unu import et
@@ -26,6 +27,7 @@ const navItems = [
   { href: '/resources', label: 'Kaynaklar', icon: BookOpen, adminOnly: false },
   { href: '/admin', label: 'Admin Paneli', icon: Shield, adminOnly: true },
   { href: '/admin/library', label: 'Kütüphane', icon: Library, adminOnly: true },
+  { href: '/admin/compare', label: 'Karşılaştır', icon: Users, adminOnly: true },
 ];
 
 function LayoutContent({ children }: { children: ReactNode }) {
