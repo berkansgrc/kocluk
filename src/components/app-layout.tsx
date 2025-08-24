@@ -30,6 +30,7 @@ const navItems = [
   { href: '/admin/library', label: 'Kütüphane', icon: Library, adminOnly: true },
 ];
 
+
 function LayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -37,7 +38,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading) return; // Wait for auth state to be determined
 
     const isAuthPage = pathname === '/login';
     const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route)) || adminRoutes.some(route => pathname.startsWith(route));
@@ -56,7 +57,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
       router.push('/');
     }
   }, [user, isAdmin, loading, pathname, router, toast]);
-
+  
   const isLoginPage = pathname === '/login';
   
   if (loading && !isLoginPage) {
@@ -67,11 +68,10 @@ function LayoutContent({ children }: { children: ReactNode }) {
     // Should be redirected by useEffect, but as a fallback, show loader
     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
-  
+
   if(isLoginPage || !user) {
     return <>{children}</>;
   }
-
 
   const visibleNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
