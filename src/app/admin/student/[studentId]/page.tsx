@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target } from 'lucide-react';
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
@@ -38,6 +38,11 @@ const resourceFormSchema = z.object({
   type: z.enum(['note', 'exercise', 'video'], { required_error: "Kaynak türü seçmek zorunludur."}),
 });
 
+const settingsFormSchema = z.object({
+  weeklyQuestionGoal: z.coerce.number().int().min(1, { message: 'Haftalık hedef en az 1 olmalıdır.' }),
+});
+
+
 export default function StudentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -58,6 +63,10 @@ export default function StudentDetailPage() {
     defaultValues: { title: '', description: '', link: '', type: 'note'},
   });
 
+  const settingsForm = useForm<z.infer<typeof settingsFormSchema>>({
+    resolver: zodResolver(settingsFormSchema),
+  });
+
   useEffect(() => {
     if (!studentId || !user) return;
     
@@ -67,7 +76,10 @@ export default function StudentDetailPage() {
         const studentDocRef = doc(db, 'students', studentId);
         const studentDocSnap = await getDoc(studentDocRef);
         if (studentDocSnap.exists()) {
-          setStudent({ id: studentDocSnap.id, ...studentDocSnap.data() } as Student);
+          const studentData = { id: studentDocSnap.id, ...studentDocSnap.data() } as Student
+          setStudent(studentData);
+          settingsForm.reset({ weeklyQuestionGoal: studentData.weeklyQuestionGoal });
+
         } else {
           toast({ title: 'Hata', description: 'Öğrenci bulunamadı.', variant: 'destructive' });
           router.push('/admin');
@@ -81,7 +93,7 @@ export default function StudentDetailPage() {
     };
     
     fetchStudent();
-  }, [studentId, toast, router, user]);
+  }, [studentId, toast, router, user, settingsForm]);
 
   const handleAssignmentSubmit = async (values: z.infer<typeof assignmentFormSchema>) => {
     if (!student) return;
@@ -160,6 +172,21 @@ export default function StudentDetailPage() {
     }
   };
 
+  const handleSettingsSubmit = async (values: z.infer<typeof settingsFormSchema>) => {
+    if (!student) return;
+    try {
+      const studentDocRef = doc(db, 'students', student.id);
+      await updateDoc(studentDocRef, {
+        weeklyQuestionGoal: values.weeklyQuestionGoal,
+      });
+      toast({ title: 'Başarılı!', description: 'Öğrenci ayarları güncellendi.' });
+      setStudent(prev => prev ? ({ ...prev, weeklyQuestionGoal: values.weeklyQuestionGoal }) : null);
+    } catch (error) {
+      console.error("Ayarlar güncellenirken hata:", error);
+      toast({ title: 'Hata', description: 'Ayarlar güncellenirken bir sorun oluştu.', variant: 'destructive' });
+    }
+  };
+
   if (loading || !student) {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -200,6 +227,46 @@ export default function StudentDetailPage() {
       </div>
       <Separator />
 
+      <h2 className="text-2xl font-bold tracking-tight mt-8">Öğrenci Ayarları</h2>
+        <Separator className="my-4" />
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card className="md:col-span-1">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target /> Haftalık Hedef
+              </CardTitle>
+              <CardDescription>
+                Öğrencinin haftalık soru çözme hedefini belirleyin.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...settingsForm}>
+                <form onSubmit={settingsForm.handleSubmit(handleSettingsSubmit)} className="space-y-4">
+                  <FormField
+                    control={settingsForm.control}
+                    name="weeklyQuestionGoal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Haftalık Soru Sayısı</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="100" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full" disabled={settingsForm.formState.isSubmitting}>
+                    {settingsForm.formState.isSubmitting ? 'Kaydediliyor...' : 'Hedefi Kaydet'}
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </div>
+
+
+      <h2 className="text-2xl font-bold tracking-tight mt-8">Ödev Yönetimi</h2>
+       <Separator className="my-4" />
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
            <CardHeader>
@@ -377,3 +444,5 @@ export default function StudentDetailPage() {
     </div>
   );
 }
+
+    
