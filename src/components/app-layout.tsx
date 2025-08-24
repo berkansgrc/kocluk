@@ -37,8 +37,10 @@ function LayoutContent({ children }: { children: ReactNode }) {
   const { user, logout, isAdmin, loading } = useAuth();
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (loading) return; // Wait for auth state to be determined
+   useEffect(() => {
+    if (loading) {
+      return; // Auth durumu netleşene kadar bir şey yapma
+    }
 
     const isAuthPage = pathname === '/login';
     const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route)) || adminRoutes.some(route => pathname.startsWith(route));
@@ -57,19 +59,18 @@ function LayoutContent({ children }: { children: ReactNode }) {
       router.push('/');
     }
   }, [user, isAdmin, loading, pathname, router, toast]);
-  
+
   const isLoginPage = pathname === '/login';
-  
+
   if (loading && !isLoginPage) {
     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
   
-  if (!user && !isLoginPage) {
-    // Should be redirected by useEffect, but as a fallback, show loader
+  if (!user && protectedRoutes.includes(pathname)) {
     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
 
-  if(isLoginPage || !user) {
+  if(isLoginPage || (!user && !loading)) {
     return <>{children}</>;
   }
 
@@ -113,7 +114,10 @@ function LayoutContent({ children }: { children: ReactNode }) {
         <SidebarFooter>
            <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={logout}>
+              <SidebarMenuButton onClick={async () => {
+                 await logout();
+                 router.push('/login');
+              }}>
                 <LogOut/>
                 <span>Çıkış Yap</span>
               </SidebarMenuButton>

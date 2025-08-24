@@ -56,7 +56,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { startOfWeek, isAfter, fromUnixTime } from 'date-fns';
-import { Checkbox } from '@/components/ui/checkbox';
 
 
 const studentFormSchema = z.object({
@@ -74,7 +73,6 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const router = useRouter();
 
   const studentForm = useForm<z.infer<typeof studentFormSchema>>({
@@ -241,24 +239,6 @@ export default function AdminPage() {
     router.push(`/admin/student/${studentId}`);
   };
 
-  const handleSelectStudent = (studentId: string, isSelected: boolean) => {
-    setSelectedStudents(prev => 
-      isSelected ? [...prev, studentId] : prev.filter(id => id !== studentId)
-    );
-  };
-  
-  const handleSelectAll = (isSelected: boolean) => {
-    setSelectedStudents(isSelected ? students.map(s => s.id) : []);
-  }
-
-  const handleCompareClick = () => {
-    if (selectedStudents.length < 2) {
-      toast({ title: "Yetersiz Seçim", description: "Lütfen karşılaştırmak için en az 2 öğrenci seçin.", variant: "destructive" });
-      return;
-    }
-    router.push(`/admin/compare?students=${selectedStudents.join(',')}`);
-  }
-
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -417,11 +397,6 @@ export default function AdminPage() {
                   Detaylar için bir öğrenciye tıklayın.
                 </CardDescription>
               </div>
-              {selectedStudents.length > 1 && (
-                <Button onClick={handleCompareClick}>
-                   <BadgePercent className="mr-2 h-4 w-4" /> Seçilen {selectedStudents.length} Öğrenciyi Karşılaştır
-                </Button>
-              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -429,12 +404,6 @@ export default function AdminPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                     <TableHead className="w-12">
-                       <Checkbox 
-                         checked={selectedStudents.length === students.length && students.length > 0}
-                         onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
-                       />
-                     </TableHead>
                     <TableHead>İsim Soyisim</TableHead>
                     <TableHead>E-posta Adresi</TableHead>
                     <TableHead>Sınıf</TableHead>
@@ -451,13 +420,13 @@ export default function AdminPage() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center">
+                      <TableCell colSpan={7} className="text-center">
                         Yükleniyor...
                       </TableCell>
                     </TableRow>
                   ) : students.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center">
+                      <TableCell colSpan={7} className="text-center">
                         Kayıtlı öğrenci bulunamadı.
                       </TableCell>
                     </TableRow>
@@ -465,47 +434,27 @@ export default function AdminPage() {
                     students.map((student) => {
                       const stats = getStudentStats(student);
                       return (
-                        <TableRow key={student.id} data-state={selectedStudents.includes(student.id) && "selected"}>
-                           <TableCell>
-                             <Checkbox 
-                               checked={selectedStudents.includes(student.id)}
-                               onCheckedChange={(checked) => handleSelectStudent(student.id, Boolean(checked))}
-                             />
-                           </TableCell>
-                          <TableCell
-                            className="font-medium cursor-pointer"
-                            onClick={() => handleRowClick(student.id)}
-                          >
+                        <TableRow
+                          key={student.id}
+                          className="cursor-pointer"
+                          onClick={() => handleRowClick(student.id)}
+                        >
+                          <TableCell className="font-medium">
                             {student.name}
                           </TableCell>
-                          <TableCell
-                            className="cursor-pointer"
-                            onClick={() => handleRowClick(student.id)}
-                          >
+                          <TableCell>
                             {student.email}
                           </TableCell>
-                           <TableCell
-                            className="cursor-pointer"
-                            onClick={() => handleRowClick(student.id)}
-                          >
+                           <TableCell>
                             {student.className || '-'}
                           </TableCell>
-                          <TableCell
-                            className="text-right cursor-pointer"
-                            onClick={() => handleRowClick(student.id)}
-                          >
+                          <TableCell className="text-right">
                             {stats.totalSolved}
                           </TableCell>
-                          <TableCell
-                            className="text-right cursor-pointer"
-                            onClick={() => handleRowClick(student.id)}
-                          >
+                          <TableCell className="text-right">
                             {stats.averageAccuracy.toFixed(1)}%
                           </TableCell>
-                           <TableCell
-                            className="text-right cursor-pointer"
-                            onClick={() => handleRowClick(student.id)}
-                          >
+                           <TableCell className="text-right">
                             {stats.totalDuration}
                           </TableCell>
                           <TableCell className="text-right">
@@ -515,6 +464,7 @@ export default function AdminPage() {
                                   variant="ghost"
                                   size="icon"
                                   disabled={isDeleting === student.id}
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
@@ -533,14 +483,15 @@ export default function AdminPage() {
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>İptal</AlertDialogCancel>
+                                  <AlertDialogCancel  onClick={(e) => e.stopPropagation()}>İptal</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() =>
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       handleDeleteStudent(
                                         student.id,
                                         student.name
                                       )
-                                    }
+                                    }}
                                   >
                                     Sil
                                   </AlertDialogAction>
