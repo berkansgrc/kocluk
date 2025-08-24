@@ -23,14 +23,17 @@ export default function NotificationAlert({ student, onClear }: NotificationAler
       setIsVisible(true);
       // Automatically clear notifications after a delay when the component mounts with new info
       const timer = setTimeout(() => {
-        onClear();
-      }, 5000); // Clear after 5 seconds to ensure user sees it
+        handleClose();
+      }, 8000); // Clear after 8 seconds to ensure user sees it
       return () => clearTimeout(timer);
+    } else {
+        setIsVisible(false);
     }
-  }, [hasNewAssignment, hasNewPlan, onClear]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasNewAssignment, hasNewPlan, student.id]); // Add student.id to re-trigger on student change
 
 
-  if (!isVisible || (!hasNewAssignment && !hasNewPlan)) {
+  if (!isVisible) {
     return null;
   }
 
@@ -47,7 +50,7 @@ export default function NotificationAlert({ student, onClear }: NotificationAler
       </Button>
       <AlertTitle>Hey, sana yeni haberler var!</AlertTitle>
       <AlertDescription>
-        <ul className="list-disc pl-5">
+        <ul className="list-disc pl-5 space-y-1 mt-2">
             {hasNewAssignment && <li>Yeni bir ödevin var. Ödevler listesinden kontrol edebilirsin.</li>}
             {hasNewPlan && <li>Bu haftaki çalışma planın güncellendi. Aşağıdan göz atabilirsin.</li>}
         </ul>
@@ -55,3 +58,5 @@ export default function NotificationAlert({ student, onClear }: NotificationAler
     </Alert>
   );
 }
+
+    

@@ -300,7 +300,7 @@ export default function StudentDetailPage() {
     if (!student || !editingAssignment) return;
     
     const updatedAssignments = (student.assignments || []).map(ass => 
-      ass.id === editingAssignment.id ? { ...ass, ...values, isNew: false, assignedAt: editingAssignment.assignedAt } : ass
+      ass.id === editingAssignment.id ? { ...ass, ...values, isNew: ass.isNew, assignedAt: editingAssignment.assignedAt } : ass
     );
 
     try {
@@ -1039,3 +1039,5 @@ export default function StudentDetailPage() {
     </div>
   );
 }
+
+    
