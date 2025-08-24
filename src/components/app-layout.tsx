@@ -49,7 +49,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
             </Button>
             <div className="flex flex-col">
               <h2 className="text-lg font-semibold tracking-tight font-headline">
-                Matematikçi AI
+                Berkan Hoca
               </h2>
             </div>
           </div>

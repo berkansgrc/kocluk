@@ -70,7 +70,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <div className='absolute top-8 left-8 flex items-center gap-2'>
              <Target className="w-8 h-8 text-accent" />
-             <h1 className='text-2xl font-bold font-headline'>Matematikçi AI</h1>
+             <h1 className='text-2xl font-bold font-headline'>Berkan Hoca</h1>
         </div>
       <Card className="w-full max-w-md">
         <CardHeader>
