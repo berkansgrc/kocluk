@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { BookCheck } from 'lucide-react';
 import type { Assignment } from '@/lib/types';
+import Link from 'next/link';
 
 interface AssignmentsListProps {
   assignments: Assignment[];
@@ -27,9 +28,15 @@ export default function AssignmentsList({ assignments }: AssignmentsListProps) {
               <li key={ass.id} className="text-sm p-2 border rounded-md flex justify-between items-center">
                 <span>{ass.title}</span>
                 <Button variant="outline" size="sm" asChild>
-                  <a href={ass.driveLink} target="_blank" rel="noopener noreferrer">
-                    Görüntüle
-                  </a>
+                   {ass.driveLink ? (
+                     <a href={ass.driveLink} target="_blank" rel="noopener noreferrer">
+                        Görüntüle
+                     </a>
+                   ) : (
+                     <Link href={`/assignment/${ass.id}`}>
+                        Görüntüle
+                     </Link>
+                   )}
                 </Button>
               </li>
             ))}

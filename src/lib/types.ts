@@ -1,7 +1,8 @@
 
 export interface Assignment {
   id: string;
-  driveLink: string;
+  driveLink?: string; // Optional: for manual assignments
+  content?: string; // Optional: for AI-generated assignments
   assignedAt: any; // Firestore Timestamp
   title: string;
 }
@@ -34,5 +35,3 @@ export interface Student {
   assignments?: Assignment[];
   resources?: Resource[];
 }
-
-    
