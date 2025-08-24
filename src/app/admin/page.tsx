@@ -433,7 +433,7 @@ function AdminPageContent() {
                 <CardDescription>
                   Sistemde kayıtlı olan tüm öğrencilerin listesi ve durumları.
                   Detaylar için bir öğrenciye tıklayın.
-                </Description>
+                </CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -559,4 +559,3 @@ export default function AdminPage() {
         </AppLayout>
     )
 }
-
