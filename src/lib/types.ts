@@ -46,6 +46,21 @@ export interface WeeklyPlanItem {
     reason: string;
 }
 
+export interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ElementType;
+  isUnlocked: (student: Student, allAchievements: AchievementDefinition[]) => boolean;
+}
+
+export interface AchievementDefinition {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ElementType;
+}
+
 export interface Student {
   id: string;
   name: string;
@@ -57,4 +72,5 @@ export interface Student {
   resources?: Resource[];
   weeklyPlan?: WeeklyPlanItem[];
   isPlanNew?: boolean;
+  unlockedAchievements?: string[];
 }

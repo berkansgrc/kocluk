@@ -17,7 +17,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library } from 'lucide-react';
+import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library } from 'lucide-react';
 import { Button } from './ui/button';
 import { AuthProvider, useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 const navItems = [
   { href: '/', label: 'Anasayfa', icon: LayoutDashboard, adminOnly: false },
   { href: '/reports', label: 'Raporlarım', icon: BarChart3, adminOnly: false },
+  { href: '/achievements', label: 'Başarımlarım', icon: Award, adminOnly: false },
   { href: '/resources', label: 'Kaynaklar', icon: BookOpen, adminOnly: false },
   { href: '/admin', label: 'Admin Paneli', icon: Shield, adminOnly: true },
   { href: '/admin/library', label: 'Kütüphane', icon: Library, adminOnly: true },
@@ -39,7 +40,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
 
    useEffect(() => {
     if (loading) {
-      return; // Auth durumu netleşene kadar bir şey yapma
+      return; 
     }
 
     const isAuthPage = pathname === '/login';
@@ -62,7 +63,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
 
   const isLoginPage = pathname === '/login';
 
-  if (loading && !isLoginPage) {
+  if (loading) {
     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
   
@@ -70,7 +71,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
 
-  if(isLoginPage || (!user && !loading)) {
+  if(isLoginPage) {
     return <>{children}</>;
   }
 

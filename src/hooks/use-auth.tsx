@@ -7,7 +7,6 @@ import {
   useState, 
   useEffect, 
   ReactNode,
-  useCallback,
 } from 'react';
 import { 
   User, 
@@ -16,8 +15,6 @@ import {
   onAuthStateChanged,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { useRouter } from 'next/navigation';
-import { useToast } from './use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -29,7 +26,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const protectedRoutes = ['/', '/reports', '/resources'];
+export const protectedRoutes = ['/', '/reports', '/resources', '/achievements'];
 export const adminRoutes = ['/admin', '/admin/student', '/admin/library'];
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
@@ -64,7 +61,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await signOut(auth);
   };
   
-
   return (
     <AuthContext.Provider value={{ user, loading, isAdmin, login, logout }}>
       {children}
