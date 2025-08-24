@@ -22,13 +22,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, Users } from 'lucide-react';
+import { Trash2, UserPlus, Users } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import {
   doc,
   setDoc,
   collection,
   getDocs,
+  deleteDoc,
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useEffect, useState, useCallback } from 'react';
@@ -42,7 +43,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const studentFormSchema = z.object({
   name: z.string().min(2, { message: 'İsim en az 2 karakter olmalıdır.' }),
@@ -57,6 +67,7 @@ export default function AdminPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const router = useRouter();
 
   const studentForm = useForm<z.infer<typeof studentFormSchema>>({
@@ -96,16 +107,13 @@ export default function AdminPage() {
   async function onStudentSubmit(values: z.infer<typeof studentFormSchema>) {
     setIsSubmitting(true);
     try {
-      // Create user in Firebase Auth
-      // NOTE: This approach has limitations. It uses a secondary, temporary Firebase app instance
-      // to create a user without signing the admin out. This is a workaround for not having a backend.
-      const {initializeApp} = await import('firebase/app');
-      const {getAuth} = await import('firebase/auth');
+      const { initializeApp } = await import('firebase/app');
+      const { getAuth } = await import('firebase/auth');
 
       const tempAppName = `temp-app-${Date.now()}`;
       const tempApp = initializeApp(auth.app.options, tempAppName);
       const tempAuth = getAuth(tempApp);
-      
+
       const userCredential = await createUserWithEmailAndPassword(
         tempAuth,
         values.email,
@@ -113,12 +121,11 @@ export default function AdminPage() {
       );
       const newStudentUser = userCredential.user;
 
-      // Save student data in Firestore with the UID as the document ID
       const studentDocRef = doc(db, 'students', newStudentUser.uid);
       await setDoc(studentDocRef, {
         name: values.name,
         email: values.email,
-        weeklyQuestionGoal: 100, // Default goal
+        weeklyQuestionGoal: 100,
         studySessions: [],
         assignments: [],
       });
@@ -129,12 +136,13 @@ export default function AdminPage() {
       });
 
       studentForm.reset();
-      fetchStudents(); // Refresh the list
+      fetchStudents();
     } catch (error: any) {
       console.error('Öğrenci eklenirken hata: ', error);
       let errorMessage = 'Öğrenci oluşturulurken bir sorun oluştu.';
       if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'Bu e-posta adresi zaten başka bir hesap tarafından kullanılıyor.';
+        errorMessage =
+          'Bu e-posta adresi zaten başka bir hesap tarafından kullanılıyor.';
       }
       toast({
         title: 'Hata',
@@ -146,11 +154,39 @@ export default function AdminPage() {
     }
   }
 
+  const handleDeleteStudent = async (studentId: string, studentName: string) => {
+    setIsDeleting(studentId);
+    try {
+      await deleteDoc(doc(db, 'students', studentId));
+      toast({
+        title: 'Firestore Kaydı Silindi',
+        description: `${studentName} adlı öğrencinin veritabanı kaydı silindi. Lütfen Firebase Authentication'dan da kullanıcıyı silmeyi unutmayın.`,
+      });
+      fetchStudents(); // Refresh the list
+    } catch (error) {
+      console.error('Öğrenci silinirken hata:', error);
+      toast({
+        title: 'Hata',
+        description: 'Öğrenci veritabanından silinirken bir sorun oluştu.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
   const getStudentStats = (student: Student) => {
-    const totalSolved = student.studySessions?.reduce((acc, s) => acc + s.questionsSolved, 0) || 0;
-    const totalCorrect = student.studySessions?.reduce((acc, s) => acc + s.questionsCorrect, 0) || 0;
-    const totalDuration = student.studySessions?.reduce((acc, s) => acc + s.durationInMinutes, 0) || 0;
-    const averageAccuracy = totalSolved > 0 ? (totalCorrect / totalSolved) * 100 : 0;
+    const totalSolved =
+      student.studySessions?.reduce((acc, s) => acc + s.questionsSolved, 0) ||
+      0;
+    const totalCorrect =
+      student.studySessions?.reduce((acc, s) => acc + s.questionsCorrect, 0) ||
+      0;
+    const totalDuration =
+      student.studySessions?.reduce((acc, s) => acc + s.durationInMinutes, 0) ||
+      0;
+    const averageAccuracy =
+      totalSolved > 0 ? (totalCorrect / totalSolved) * 100 : 0;
     return { totalSolved, averageAccuracy, totalDuration };
   };
 
@@ -172,7 +208,7 @@ export default function AdminPage() {
       </div>
       <Separator />
       <div className="grid gap-6">
-         <Card>
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UserPlus /> Yeni Öğrenci Ekle
@@ -226,8 +262,14 @@ export default function AdminPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                   {isSubmitting ? 'Ekleniyor...' : (
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    'Ekleniyor...'
+                  ) : (
                     <>
                       <UserPlus className="mr-2 h-4 w-4" /> Öğrenciyi Ekle
                     </>
@@ -243,7 +285,8 @@ export default function AdminPage() {
               <Users /> Kayıtlı Öğrenciler
             </CardTitle>
             <CardDescription>
-              Sistemde kayıtlı olan tüm öğrencilerin listesi ve durumları. Detaylar için bir öğrenciye tıklayın.
+              Sistemde kayıtlı olan tüm öğrencilerin listesi ve durumları.
+              Detaylar için bir öğrenciye tıklayın.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -253,21 +296,26 @@ export default function AdminPage() {
                   <TableRow>
                     <TableHead>İsim Soyisim</TableHead>
                     <TableHead>E-posta Adresi</TableHead>
-                    <TableHead className="text-right">Toplam Çözülen</TableHead>
+                    <TableHead className="text-right">
+                      Toplam Çözülen
+                    </TableHead>
                     <TableHead className="text-right">Ortalama Başarı</TableHead>
-                    <TableHead className="text-right">Toplam Süre (dk)</TableHead>
+                    <TableHead className="text-right">
+                      Toplam Süre (dk)
+                    </TableHead>
+                    <TableHead className="text-right">İşlemler</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center">
+                      <TableCell colSpan={6} className="text-center">
                         Yükleniyor...
                       </TableCell>
                     </TableRow>
                   ) : students.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center">
+                      <TableCell colSpan={6} className="text-center">
                         Kayıtlı öğrenci bulunamadı.
                       </TableCell>
                     </TableRow>
@@ -275,14 +323,78 @@ export default function AdminPage() {
                     students.map((student) => {
                       const stats = getStudentStats(student);
                       return (
-                        <TableRow key={student.id} onClick={() => handleRowClick(student.id)} className="cursor-pointer">
-                          <TableCell className="font-medium">
+                        <TableRow key={student.id}>
+                          <TableCell
+                            className="font-medium cursor-pointer"
+                            onClick={() => handleRowClick(student.id)}
+                          >
                             {student.name}
                           </TableCell>
-                          <TableCell>{student.email}</TableCell>
-                          <TableCell className="text-right">{stats.totalSolved}</TableCell>
-                          <TableCell className="text-right">{stats.averageAccuracy.toFixed(1)}%</TableCell>
-                          <TableCell className="text-right">{stats.totalDuration}</TableCell>
+                          <TableCell
+                            className="cursor-pointer"
+                            onClick={() => handleRowClick(student.id)}
+                          >
+                            {student.email}
+                          </TableCell>
+                          <TableCell
+                            className="text-right cursor-pointer"
+                            onClick={() => handleRowClick(student.id)}
+                          >
+                            {stats.totalSolved}
+                          </TableCell>
+                          <TableCell
+                            className="text-right cursor-pointer"
+                            onClick={() => handleRowClick(student.id)}
+                          >
+                            {stats.averageAccuracy.toFixed(1)}%
+                          </TableCell>
+                           <TableCell
+                            className="text-right cursor-pointer"
+                            onClick={() => handleRowClick(student.id)}
+                          >
+                            {stats.totalDuration}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  disabled={isDeleting === student.id}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Emin misiniz?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Bu işlem geri alınamaz. Bu, {student.name}{' '}
+                                    adlı öğrencinin verilerini sunucularımızdan
+                                    kalıcı olarak silecektir. Ayrıca, kimlik
+                                    doğrulama hesabını Firebase
+                                    Authentication'dan manuel olarak silmeniz
+                                    gerekir.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>İptal</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() =>
+                                      handleDeleteStudent(
+                                        student.id,
+                                        student.name
+                                      )
+                                    }
+                                  >
+                                    Sil
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
                         </TableRow>
                       );
                     })

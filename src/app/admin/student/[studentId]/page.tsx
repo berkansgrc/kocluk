@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import type { Student, Assignment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, BookCheck, FileUp } from 'lucide-react';
+import { ArrowLeft, BookCheck, FileUp, KeyRound } from 'lucide-react';
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
@@ -22,6 +22,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 const assignmentFormSchema = z.object({
   title: z.string().min(3, { message: 'Ödev başlığı en az 3 karakter olmalıdır.' }),
@@ -94,6 +95,24 @@ export default function StudentDetailPage() {
     }
   }
 
+  const handlePasswordReset = async () => {
+    if (!student?.email) return;
+    try {
+      await sendPasswordResetEmail(auth, student.email);
+      toast({
+        title: 'Başarılı!',
+        description: `${student.name} adlı öğrenci için şifre sıfırlama e-postası gönderildi.`,
+      });
+    } catch (error) {
+      console.error('Şifre sıfırlama e-postası gönderilirken hata:', error);
+      toast({
+        title: 'Hata',
+        description: 'Şifre sıfırlama e-postası gönderilemedi.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (!isAdmin) {
     router.push('/');
     return null;
@@ -132,6 +151,10 @@ export default function StudentDetailPage() {
             {student.email}
           </p>
         </div>
+          <Button variant="outline" onClick={handlePasswordReset}>
+            <KeyRound className="mr-2 h-4 w-4" />
+            Şifre Sıfırlama E-postası Gönder
+          </Button>
       </div>
       <Separator />
 
