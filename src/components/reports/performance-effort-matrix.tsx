@@ -1,0 +1,173 @@
+
+'use client';
+
+import { useMemo } from 'react';
+import {
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  ZAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  ReferenceLine,
+  Label,
+} from 'recharts';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import type { StudySession } from '@/lib/types';
+
+interface PerformanceEffortMatrixProps {
+  studySessions: StudySession[];
+}
+
+interface ChartData {
+  topic: string;
+  duration: number;
+  accuracy: number;
+  questions: number;
+  quadrant: number;
+}
+
+const COLORS = {
+  quadrant1: 'hsl(var(--chart-2))', // Verimli Çalışma (Yeşil)
+  quadrant2: 'hsl(var(--primary))',   // Güçlü Alanlar (Mavi)
+  quadrant3: 'hsl(var(--destructive))', // Öncelikli Alanlar (Kırmızı)
+  quadrant4: 'hsl(var(--muted-foreground))', // Keşfedilmemiş Alanlar (Gri)
+};
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="p-2 border rounded-md bg-background shadow-lg">
+        <p className="font-bold">{data.topic}</p>
+        <p>Süre: {data.duration.toFixed(0)} dk</p>
+        <p>Doğruluk: {data.accuracy.toFixed(1)}%</p>
+        <p>Soru Sayısı: {data.questions}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
+export default function PerformanceEffortMatrix({ studySessions }: PerformanceEffortMatrixProps) {
+  const { data, avgDuration, avgAccuracy } = useMemo(() => {
+    if (!studySessions || studySessions.length === 0) {
+      return { data: [], avgDuration: 0, avgAccuracy: 0 };
+    }
+
+    const stats = studySessions.reduce((acc, session) => {
+      const key = `${session.subject} - ${session.topic}`;
+      if (!acc[key]) {
+        acc[key] = {
+          topic: key,
+          duration: 0,
+          correct: 0,
+          total: 0,
+        };
+      }
+      acc[key].duration += session.durationInMinutes;
+      acc[key].correct += session.questionsCorrect;
+      acc[key].total += session.questionsSolved;
+      return acc;
+    }, {} as Record<string, { topic: string, duration: number; correct: number; total: number }>);
+
+    const processedData = Object.values(stats)
+      .filter((d) => d.total > 0)
+      .map((d) => ({
+        topic: d.topic,
+        duration: d.duration,
+        accuracy: (d.correct / d.total) * 100,
+        questions: d.total,
+        quadrant: 0, // Will be calculated later
+      }));
+      
+    const totalDuration = processedData.reduce((sum, d) => sum + d.duration, 0);
+    const totalAccuracySum = processedData.reduce((sum, d) => sum + d.accuracy, 0);
+    const avgDuration = processedData.length > 0 ? totalDuration / processedData.length : 50;
+    const avgAccuracy = processedData.length > 0 ? totalAccuracySum / processedData.length : 50;
+
+    // Assign quadrant
+    processedData.forEach(d => {
+        if (d.duration >= avgDuration && d.accuracy >= avgAccuracy) d.quadrant = 1;
+        else if (d.duration < avgDuration && d.accuracy >= avgAccuracy) d.quadrant = 2;
+        else if (d.duration >= avgDuration && d.accuracy < avgAccuracy) d.quadrant = 3;
+        else d.quadrant = 4;
+    });
+
+
+    return { data: processedData, avgDuration, avgAccuracy };
+  }, [studySessions]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Performans/Efor Matrisi</CardTitle>
+        <CardDescription>
+          Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın. Baloncuk boyutu çözülen soru sayısını temsil eder.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {data.length > 0 ? (
+          <ResponsiveContainer width="100%" height={450}>
+            <ScatterChart
+              margin={{
+                top: 40,
+                right: 40,
+                bottom: 40,
+                left: 20,
+              }}
+            >
+              <XAxis 
+                type="number" 
+                dataKey="duration" 
+                name="Süre" 
+                unit=" dk" 
+                stroke="hsl(var(--foreground))"
+                label={{ value: 'Harcanan Toplam Zaman (dk)', position: 'insideBottom', offset: -20 }}
+              />
+              <YAxis 
+                type="number" 
+                dataKey="accuracy" 
+                name="Doğruluk" 
+                unit="%" 
+                domain={[0, 100]}
+                stroke="hsl(var(--foreground))"
+                label={{ value: 'Doğruluk Oranı (%)', angle: -90, position: 'insideLeft' }}
+              />
+              <ZAxis type="number" dataKey="questions" range={[100, 1000]} name="Soru Sayısı" />
+              <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />} />
+              
+              <ReferenceLine y={avgAccuracy} strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <ReferenceLine x={avgDuration} strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              
+              <Label value="Verimli Çalışma" position="insideTopRight" offset={10} fill={COLORS.quadrant1} />
+              <Label value="Güçlü Alanlar" position="insideTopLeft" offset={10} fill={COLORS.quadrant2} />
+              <Label value="Öncelikli Alanlar" position="insideBottomRight" offset={10} fill={COLORS.quadrant3} />
+              <Label value="Keşfedilmemiş" position="insideBottomLeft" offset={10} fill={COLORS.quadrant4} />
+
+              <Scatter data={data} fill="hsl(var(--primary))">
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[`quadrant${entry.quadrant}` as keyof typeof COLORS]} />
+                ))}
+              </Scatter>
+            </ScatterChart>
+          </ResponsiveContainer>
+        ) : (
+            <div className="flex h-[450px] w-full items-center justify-center">
+                <p className="text-muted-foreground">Grafiği oluşturmak için yeterli veri yok.</p>
+            </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+    

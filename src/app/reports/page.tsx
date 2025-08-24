@@ -1,3 +1,4 @@
+
 'use client';
 
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
@@ -6,6 +7,7 @@ import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matri
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
+import PerformanceEffortMatrix from '@/components/reports/performance-effort-matrix';
 
 
 export default function ReportsPage() {
@@ -29,8 +31,9 @@ export default function ReportsPage() {
              <Skeleton className="h-96 w-full" />
           </div>
         </div>
-        <div>
+        <div className="grid gap-6 mt-6">
           <Skeleton className="h-80 w-full" />
+          <Skeleton className="h-96 w-full" />
         </div>
       </div>
     )
@@ -57,9 +60,12 @@ export default function ReportsPage() {
           <StudyDurationChart studySessions={studentData.studySessions || []} />
         </div>
       </div>
-      <div>
+      <div className="grid gap-6 mt-6">
         <StrengthWeaknessMatrix studySessions={studentData.studySessions || []} />
+        <PerformanceEffortMatrix studySessions={studentData.studySessions || []} />
       </div>
     </div>
   );
 }
+
+    

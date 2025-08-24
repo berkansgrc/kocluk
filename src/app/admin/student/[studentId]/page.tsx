@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import PerformanceEffortMatrix from '@/components/reports/performance-effort-matrix';
 
 const assignmentFormSchema = z.object({
   title: z.string().min(3, { message: 'Ödev başlığı en az 3 karakter olmalıdır.' }),
@@ -438,8 +439,9 @@ export default function StudentDetailPage() {
           <StudyDurationChart studySessions={student.studySessions || []} />
         </div>
       </div>
-      <div>
-        <StrengthWeaknessMatrix studySessions={student.studySessions || []} />
+      <div className="grid gap-6 mt-6">
+         <StrengthWeaknessMatrix studySessions={student.studySessions || []} />
+         <PerformanceEffortMatrix studySessions={student.studySessions || []} />
       </div>
     </div>
   );
