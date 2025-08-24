@@ -28,8 +28,6 @@ const navItems = [
   { href: '/resources', label: 'Kaynaklar', icon: BookOpen, adminOnly: false },
   { href: '/admin', label: 'Admin Paneli', icon: Shield, adminOnly: true },
   { href: '/admin/library', label: 'Kütüphane', icon: Library, adminOnly: true },
-  // Hidden from sidebar but part of routing logic
-  // { href: '/admin/compare', label: 'Karşılaştır', icon: Users, adminOnly: true },
 ];
 
 function LayoutContent({ children }: { children: ReactNode }) {
@@ -74,9 +72,6 @@ function LayoutContent({ children }: { children: ReactNode }) {
 
   const visibleNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
-  // Hide compare link from sidebar, it's accessed from the admin page
-  const sidebarNavItems = visibleNavItems.filter(item => item.href !== '/admin/compare');
-
   return (
     <SidebarProvider>
       <Sidebar>
@@ -96,7 +91,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {sidebarNavItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                   asChild
