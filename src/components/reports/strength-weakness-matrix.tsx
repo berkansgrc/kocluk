@@ -1,12 +1,6 @@
+
 'use client';
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -94,40 +88,38 @@ export default function StrengthWeaknessMatrix({ studySessions }: StrengthWeakne
     </TableHead>
   );
   
+  if (subjectStats.length === 0) {
+    return (
+      <div className="flex h-40 w-full items-center justify-center">
+        <p className="text-muted-foreground">Analiz için yeterli konu verisi yok.</p>
+      </div>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>
-        <CardDescription>
-          Farklı derslerdeki ve konulardaki performansınızı analiz edin. Geliştirilecek alanları bulmak için doğruluğa göre sıralayın.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Ders</TableHead>
-                <TableHead>Konu</TableHead>
-                <SortableHeader sortKey="totalQuestions" label="Çözülen Soru" />
-                <SortableHeader sortKey="totalMinutes" label="Harcanan Zaman (dk)" />
-                <SortableHeader sortKey="accuracy" label="Doğruluk" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedStats.map((stat) => (
-                <TableRow key={`${stat.subject}-${stat.topic}`}>
-                  <TableCell className="font-medium">{stat.subject}</TableCell>
-                  <TableCell>{stat.topic}</TableCell>
-                  <TableCell className="text-right">{stat.totalQuestions}</TableCell>
-                  <TableCell className="text-right">{stat.totalMinutes}</TableCell>
-                  <TableCell className="text-right">{stat.accuracy.toFixed(1)}%</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Ders</TableHead>
+            <TableHead>Konu</TableHead>
+            <SortableHeader sortKey="totalQuestions" label="Çözülen Soru" />
+            <SortableHeader sortKey="totalMinutes" label="Harcanan Zaman (dk)" />
+            <SortableHeader sortKey="accuracy" label="Doğruluk" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sortedStats.map((stat) => (
+            <TableRow key={`${stat.subject}-${stat.topic}`}>
+              <TableCell className="font-medium">{stat.subject}</TableCell>
+              <TableCell>{stat.topic}</TableCell>
+              <TableCell className="text-right">{stat.totalQuestions}</TableCell>
+              <TableCell className="text-right">{stat.totalMinutes}</TableCell>
+              <TableCell className="text-right">{stat.accuracy.toFixed(1)}%</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

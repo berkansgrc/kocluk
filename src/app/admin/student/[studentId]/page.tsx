@@ -156,16 +156,20 @@ export default function StudentDetailPage() {
   
     const allSessions = student.studySessions.map(s => {
       let sessionDate;
+      // Handle Firestore Timestamp
       if (s.date && typeof s.date.seconds === 'number') {
         sessionDate = fromUnixTime(s.date.seconds);
       } else {
+        // Handle string or other formats (with validation)
         const parsedDate = new Date(s.date);
         if (!isNaN(parsedDate.getTime())) {
           sessionDate = parsedDate;
+        } else {
+            return { ...s, date: null }; // Mark as invalid
         }
       }
       return { ...s, date: sessionDate };
-    }).filter(s => s.date instanceof Date && !isNaN(s.date.getTime()));
+    }).filter(s => s.date instanceof Date && !isNaN(s.date.getTime())); // Ensure only valid dates proceed
   
     if (timeRange === 'all') {
       return { filteredSessions: allSessions, dateRangeDisplay: 'Tüm Zamanlar' };
@@ -187,11 +191,13 @@ export default function StudentDetailPage() {
         end = endOfYear(currentDate);
         break;
       default:
+        // Should not happen with the check above, but as a fallback
         return { filteredSessions: allSessions, dateRangeDisplay: 'Tüm Zamanlar' };
     }
     
     const filtered = allSessions.filter(session => {
         const sessionDate = session.date;
+        // The check for valid date is now more robust
         return sessionDate && sessionDate >= start && sessionDate <= end;
     });
   
