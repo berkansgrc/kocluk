@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap } from 'lucide-react';
+import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil } from 'lucide-react';
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
@@ -26,6 +26,28 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import PerformanceEffortMatrix from '@/components/reports/performance-effort-matrix';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+
 
 const assignmentFormSchema = z.object({
   title: z.string().min(3, { message: 'Ödev başlığı en az 3 karakter olmalıdır.' }),
@@ -54,10 +76,15 @@ export default function StudentDetailPage() {
 
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
 
   const assignmentForm = useForm<z.infer<typeof assignmentFormSchema>>({
     resolver: zodResolver(assignmentFormSchema),
     defaultValues: { title: '', driveLink: '' },
+  });
+
+  const editAssignmentForm = useForm<z.infer<typeof assignmentFormSchema>>({
+    resolver: zodResolver(assignmentFormSchema),
   });
 
   const resourceForm = useForm<z.infer<typeof resourceFormSchema>>({
@@ -123,6 +150,43 @@ export default function StudentDetailPage() {
        toast({ title: 'Hata', description: 'Ödev atanırken bir sorun oluştu.', variant: 'destructive' });
     }
   }
+
+  const handleAssignmentEdit = async (values: z.infer<typeof assignmentFormSchema>) => {
+    if (!student || !editingAssignment) return;
+    
+    const updatedAssignments = (student.assignments || []).map(ass => 
+      ass.id === editingAssignment.id ? { ...ass, ...values } : ass
+    );
+
+    try {
+      const studentDocRef = doc(db, 'students', student.id);
+      await updateDoc(studentDocRef, {
+        assignments: updatedAssignments
+      });
+      toast({ title: 'Başarılı!', description: 'Ödev başarıyla güncellendi.' });
+      setStudent(prev => prev ? ({ ...prev, assignments: updatedAssignments }) : null);
+      setEditingAssignment(null);
+    } catch (error) {
+      console.error("Ödev güncellenirken hata:", error);
+      toast({ title: 'Hata', description: 'Ödev güncellenirken bir sorun oluştu.', variant: 'destructive' });
+    }
+  };
+
+  const handleAssignmentDelete = async (assignmentToDelete: Assignment) => {
+    if (!student) return;
+
+    try {
+      const studentDocRef = doc(db, 'students', student.id);
+      await updateDoc(studentDocRef, {
+        assignments: arrayRemove(assignmentToDelete)
+      });
+      toast({ title: 'Başarılı!', description: 'Ödev başarıyla silindi.' });
+      setStudent(prev => prev ? ({ ...prev, assignments: (prev.assignments || []).filter(a => a.id !== assignmentToDelete.id) }) : null);
+    } catch (error) {
+       console.error("Ödev silinirken hata:", error);
+       toast({ title: 'Hata', description: 'Ödev silinirken bir sorun oluştu.', variant: 'destructive' });
+    }
+  };
 
   const handleResourceSubmit = async (values: z.infer<typeof resourceFormSchema>) => {
     if (!student) return;
@@ -343,14 +407,95 @@ export default function StudentDetailPage() {
             <CardContent>
               {student.assignments && student.assignments.length > 0 ? (
                 <ul className="space-y-2">
-                  {student.assignments.map(ass => (
-                    <li key={ass.id} className="text-sm p-2 border rounded-md flex justify-between items-center">
-                      <span>{ass.title}</span>
-                       <Button variant="outline" size="sm" asChild>
-                        <a href={ass.driveLink} target="_blank" rel="noopener noreferrer">
-                          Görüntüle
-                        </a>
-                      </Button>
+                  {(student.assignments || []).sort((a,b) => b.assignedAt.toMillis() - a.assignedAt.toMillis()).map(ass => (
+                    <li key={ass.id} className="text-sm p-2 border rounded-md flex justify-between items-center group">
+                      <a href={ass.driveLink} target="_blank" rel="noopener noreferrer" className="hover:underline flex-1 truncate pr-2">
+                        {ass.title}
+                      </a>
+                       <div className='flex items-center'>
+
+                        <Dialog onOpenChange={(open) => {
+                            if (!open) {
+                                setEditingAssignment(null);
+                                editAssignmentForm.reset();
+                            } else {
+                                setEditingAssignment(ass);
+                                editAssignmentForm.setValue('title', ass.title);
+                                editAssignmentForm.setValue('driveLink', ass.driveLink);
+                            }
+                        }}>
+                            <DialogTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Ödevi Düzenle</DialogTitle>
+                                    <DialogDescription>
+                                        Ödevin başlığını veya linkini güncelleyebilirsiniz.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <Form {...editAssignmentForm}>
+                                    <form id="edit-assignment-form" onSubmit={editAssignmentForm.handleSubmit(handleAssignmentEdit)} className="space-y-4">
+                                        <FormField
+                                            control={editAssignmentForm.control}
+                                            name="title"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Ödev Başlığı</FormLabel>
+                                                    <FormControl><Input {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={editAssignmentForm.control}
+                                            name="driveLink"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Google Drive Linki</FormLabel>
+                                                    <FormControl><Input {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </form>
+                                </Form>
+                                <DialogFooter>
+                                    <DialogClose asChild>
+                                        <Button type="button" variant="secondary">İptal</Button>
+                                    </DialogClose>
+                                    <Button type="submit" form="edit-assignment-form" disabled={editAssignmentForm.formState.isSubmitting}>
+                                        {editAssignmentForm.formState.isSubmitting ? "Kaydediliyor..." : "Kaydet"}
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+
+
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Bu işlem geri alınamaz. "{ass.title}" başlıklı ödevi kalıcı olarak silecektir.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>İptal</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleAssignmentDelete(ass)}>
+                                    Sil
+                                </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                       </div>
                     </li>
                   ))}
                 </ul>
@@ -425,7 +570,7 @@ export default function StudentDetailPage() {
                 <CardHeader>
                     <CardTitle>Atanmış Kaynaklar</CardTitle>
                     <CardDescription>Bu öğrenciye atanmış kaynakların listesi.</CardDescription>
-                </CardHeader>
+                </Header>
                 <CardContent>
                      {student.resources && student.resources.length > 0 ? (
                         <ul className="space-y-2">
