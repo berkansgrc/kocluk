@@ -41,6 +41,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useRouter } from 'next/navigation';
+
 
 const studentFormSchema = z.object({
   name: z.string().min(2, { message: 'İsim en az 2 karakter olmalıdır.' }),
@@ -55,6 +57,7 @@ export default function AdminPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
 
   const studentForm = useForm<z.infer<typeof studentFormSchema>>({
     resolver: zodResolver(studentFormSchema),
@@ -117,6 +120,7 @@ export default function AdminPage() {
         email: values.email,
         weeklyQuestionGoal: 100, // Default goal
         studySessions: [],
+        assignments: [],
       });
 
       toast({
@@ -148,6 +152,10 @@ export default function AdminPage() {
     const totalDuration = student.studySessions?.reduce((acc, s) => acc + s.durationInMinutes, 0) || 0;
     const averageAccuracy = totalSolved > 0 ? (totalCorrect / totalSolved) * 100 : 0;
     return { totalSolved, averageAccuracy, totalDuration };
+  };
+
+  const handleRowClick = (studentId: string) => {
+    router.push(`/admin/student/${studentId}`);
   };
 
   return (
@@ -235,7 +243,7 @@ export default function AdminPage() {
               <Users /> Kayıtlı Öğrenciler
             </CardTitle>
             <CardDescription>
-              Sistemde kayıtlı olan tüm öğrencilerin listesi ve durumları.
+              Sistemde kayıtlı olan tüm öğrencilerin listesi ve durumları. Detaylar için bir öğrenciye tıklayın.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -267,7 +275,7 @@ export default function AdminPage() {
                     students.map((student) => {
                       const stats = getStudentStats(student);
                       return (
-                        <TableRow key={student.id}>
+                        <TableRow key={student.id} onClick={() => handleRowClick(student.id)} className="cursor-pointer">
                           <TableCell className="font-medium">
                             {student.name}
                           </TableCell>

@@ -1,3 +1,10 @@
+export interface Assignment {
+  id: string;
+  driveLink: string;
+  assignedAt: any; // Firestore Timestamp
+  title: string;
+}
+
 export interface StudySession {
   id: string;
   date: any; // Allow Firestore Timestamp
@@ -13,4 +20,5 @@ export interface Student {
   email: string;
   weeklyQuestionGoal: number;
   studySessions: StudySession[];
+  assignments?: Assignment[];
 }
