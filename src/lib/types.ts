@@ -1,4 +1,12 @@
 
+export interface FeedbackNote {
+  id: string;
+  reportContext: 'StrengthWeaknessMatrix' | 'PerformanceEffortMatrix' | 'General';
+  text: string;
+  createdAt: any; // Firestore Timestamp
+  author: string;
+}
+
 export interface Assignment {
   id: string;
   driveLink: string; 
@@ -33,4 +41,5 @@ export interface Student {
   studySessions: StudySession[];
   assignments?: Assignment[];
   resources?: Resource[];
+  feedbackNotes?: FeedbackNote[];
 }

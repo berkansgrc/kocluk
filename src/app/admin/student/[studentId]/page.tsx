@@ -5,18 +5,18 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import type { Student, Assignment, Resource, StudySession } from '@/lib/types';
+import type { Student, Assignment, Resource, StudySession, FeedbackNote } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight, Download, MessageSquarePlus, MessageSquareX } from 'lucide-react';
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -82,7 +82,13 @@ const settingsFormSchema = z.object({
   className: z.string().optional(),
 });
 
+const feedbackFormSchema = z.object({
+  text: z.string().min(10, { message: 'Geri bildirim en az 10 karakter olmalıdır.' }),
+});
+
+
 type TimeRange = 'weekly' | 'monthly' | 'yearly' | 'all';
+type ReportContext = FeedbackNote['reportContext'];
 
 export default function StudentDetailPage() {
   const params = useParams();
@@ -95,6 +101,8 @@ export default function StudentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [isNoteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [currentReportContext, setCurrentReportContext] = useState<ReportContext | null>(null);
 
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -119,36 +127,39 @@ export default function StudentDetailPage() {
     resolver: zodResolver(settingsFormSchema),
   });
 
-  useEffect(() => {
-    if (!studentId || !user) return;
-    
-    const fetchStudent = async () => {
-      setLoading(true);
-      try {
-        const studentDocRef = doc(db, 'students', studentId);
-        const studentDocSnap = await getDoc(studentDocRef);
-        if (studentDocSnap.exists()) {
-          const studentData = { id: studentDocSnap.id, ...studentDocSnap.data() } as Student
-          setStudent(studentData);
-          settingsForm.reset({ 
-            weeklyQuestionGoal: studentData.weeklyQuestionGoal,
-            className: studentData.className || '',
-          });
+  const feedbackForm = useForm<z.infer<typeof feedbackFormSchema>>({
+    resolver: zodResolver(feedbackFormSchema),
+  });
 
-        } else {
-          toast({ title: 'Hata', description: 'Öğrenci bulunamadı.', variant: 'destructive' });
-          router.push('/admin');
-        }
-      } catch (error) {
-        console.error("Öğrenci verisi alınırken hata:", error);
-        toast({ title: 'Hata', description: 'Öğrenci verileri alınamadı.', variant: 'destructive' });
-      } finally {
-        setLoading(false);
+  const fetchStudent = useCallback(async () => {
+    // No need to set loading to true here, it is handled in the effect
+    if (!studentId || !user) return;
+    try {
+      const studentDocRef = doc(db, 'students', studentId);
+      const studentDocSnap = await getDoc(studentDocRef);
+      if (studentDocSnap.exists()) {
+        const studentData = { id: studentDocSnap.id, ...studentDocSnap.data() } as Student
+        setStudent(studentData);
+        settingsForm.reset({ 
+          weeklyQuestionGoal: studentData.weeklyQuestionGoal,
+          className: studentData.className || '',
+        });
+      } else {
+        toast({ title: 'Hata', description: 'Öğrenci bulunamadı.', variant: 'destructive' });
+        router.push('/admin');
       }
-    };
-    
-    fetchStudent();
+    } catch (error) {
+      console.error("Öğrenci verisi alınırken hata:", error);
+      toast({ title: 'Hata', description: 'Öğrenci verileri alınamadı.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   }, [studentId, toast, router, user, settingsForm]);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchStudent();
+  }, [fetchStudent]);
 
    const { filteredSessions, dateRangeDisplay } = useMemo(() => {
     if (!student || !student.studySessions) {
@@ -160,7 +171,6 @@ export default function StudentDetailPage() {
       if (s.date && typeof s.date.seconds === 'number') {
         sessionDate = fromUnixTime(s.date.seconds);
       } else {
-        // Fallback for older string-based dates
         const parsedDate = new Date(s.date);
         if (!isNaN(parsedDate.getTime())) {
           sessionDate = parsedDate;
@@ -189,7 +199,6 @@ export default function StudentDetailPage() {
         end = endOfYear(currentDate);
         break;
       default:
-        // Should not happen, but as a fallback
         return { filteredSessions: allSessions, dateRangeDisplay: 'Tüm Zamanlar' };
     }
     
@@ -246,7 +255,7 @@ export default function StudentDetailPage() {
       });
       toast({ title: 'Başarılı!', description: 'Ödev başarıyla öğrenciye atandı.' });
       assignmentForm.reset();
-      setStudent(prev => prev ? ({ ...prev, assignments: [...(prev.assignments || []), newAssignment] }) : null);
+      fetchStudent(); // Re-fetch student to update state
     } catch (error) {
        console.error("Ödev atanırken hata:", error);
        toast({ title: 'Hata', description: 'Ödev atanırken bir sorun oluştu.', variant: 'destructive' });
@@ -266,7 +275,7 @@ export default function StudentDetailPage() {
         assignments: updatedAssignments
       });
       toast({ title: 'Başarılı!', description: 'Ödev başarıyla güncellendi.' });
-      setStudent(prev => prev ? ({ ...prev, assignments: updatedAssignments }) : null);
+      fetchStudent();
       setEditingAssignment(null);
     } catch (error) {
       console.error("Ödev güncellenirken hata:", error);
@@ -276,8 +285,6 @@ export default function StudentDetailPage() {
 
   const handleAssignmentDelete = async (assignmentToDelete: Assignment) => {
     if (!student) return;
-
-    // Find the full assignment object to be deleted, because Firestore arrayRemove needs the exact object.
     const assignmentInState = (student.assignments || []).find(a => a.id === assignmentToDelete.id);
     if (!assignmentInState) {
         toast({ title: 'Hata', description: 'Silinecek ödev bulunamadı.', variant: 'destructive' });
@@ -290,7 +297,7 @@ export default function StudentDetailPage() {
         assignments: arrayRemove(assignmentInState)
       });
       toast({ title: 'Başarılı!', description: 'Ödev başarıyla silindi.' });
-      setStudent(prev => prev ? ({ ...prev, assignments: (prev.assignments || []).filter(a => a.id !== assignmentToDelete.id) }) : null);
+      fetchStudent();
     } catch (error) {
        console.error("Ödev silinirken hata:", error);
        toast({ title: 'Hata', description: 'Ödev silinirken bir sorun oluştu.', variant: 'destructive' });
@@ -310,7 +317,7 @@ export default function StudentDetailPage() {
       });
       toast({ title: 'Başarılı!', description: 'Kaynak başarıyla eklendi.' });
       resourceForm.reset();
-      setStudent(prev => prev ? ({ ...prev, resources: [...(prev.resources || []), newResource] }) : null);
+      fetchStudent();
     } catch (error) {
       console.error("Kaynak eklenirken hata:", error);
       toast({ title: 'Hata', description: 'Kaynak eklenirken bir sorun oluştu.', variant: 'destructive' });
@@ -325,7 +332,7 @@ export default function StudentDetailPage() {
         resources: arrayRemove(resource)
       });
       toast({ title: 'Başarılı!', description: 'Kaynak başarıyla silindi.' });
-      setStudent(prev => prev ? ({ ...prev, resources: (prev.resources || []).filter(r => r.id !== resource.id) }) : null);
+      fetchStudent();
     } catch (error) {
       console.error("Kaynak silinirken hata:", error);
       toast({ title: 'Hata', description: 'Kaynak silinirken bir sorun oluştu.', variant: 'destructive' });
@@ -360,7 +367,7 @@ export default function StudentDetailPage() {
         className: values.className || '',
       });
       toast({ title: 'Başarılı!', description: 'Öğrenci ayarları güncellendi.' });
-      setStudent(prev => prev ? ({ ...prev, weeklyQuestionGoal: values.weeklyQuestionGoal, className: values.className }) : null);
+      fetchStudent();
     } catch (error) {
       console.error("Ayarlar güncellenirken hata:", error);
       toast({ title: 'Hata', description: 'Ayarlar güncellenirken bir sorun oluştu.', variant: 'destructive' });
@@ -374,37 +381,120 @@ export default function StudentDetailPage() {
     setIsDownloading(true);
     toast({ title: 'Rapor Oluşturuluyor...', description: 'Lütfen bekleyin, PDF dosyası hazırlanıyor.' });
 
-
     const canvas = await html2canvas(element, {
-      scale: 2, // Higher scale for better quality
+      scale: 2,
       useCORS: true, 
       logging: false,
-      backgroundColor: window.getComputedStyle(document.body).backgroundColor, // Match background
+      backgroundColor: window.getComputedStyle(document.body).backgroundColor,
     });
     
     const imgData = canvas.toDataURL('image/png');
-    
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'pt',
-      format: 'a4'
-    });
-
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     const ratio = canvasWidth / canvasHeight;
-    
-    const width = pdfWidth - 40; // with some margin
+    const width = pdfWidth - 40;
     const height = width / ratio;
 
     pdf.addImage(imgData, 'PNG', 20, 20, width, height);
     pdf.save(`${student.name.replace(' ', '_')}-Rapor-${dateRangeDisplay.replace(' ', '_')}.pdf`);
     setIsDownloading(false);
     toast({ title: 'Başarılı!', description: 'Rapor PDF olarak indirildi.' });
-
   };
+  
+  const openFeedbackDialog = (context: ReportContext) => {
+    setCurrentReportContext(context);
+    setNoteDialogOpen(true);
+  };
+
+  const handleFeedbackSubmit = async (values: z.infer<typeof feedbackFormSchema>) => {
+    if (!student || !currentReportContext || !user?.displayName) return;
+
+    const newFeedback: FeedbackNote = {
+      id: new Date().toISOString(),
+      text: values.text,
+      reportContext: currentReportContext,
+      createdAt: Timestamp.now(),
+      author: user.displayName || 'Admin',
+    };
+
+    try {
+      const studentDocRef = doc(db, 'students', student.id);
+      await updateDoc(studentDocRef, {
+        feedbackNotes: arrayUnion(newFeedback)
+      });
+      toast({ title: 'Başarılı!', description: 'Not başarıyla eklendi.' });
+      feedbackForm.reset();
+      setNoteDialogOpen(false);
+      fetchStudent();
+    } catch (error) {
+       console.error("Geri bildirim eklenirken hata:", error);
+       toast({ title: 'Hata', description: 'Not eklenirken bir sorun oluştu.', variant: 'destructive' });
+    }
+  };
+
+  const handleFeedbackDelete = async (noteId: string) => {
+    if (!student) return;
+    const noteToDelete = (student.feedbackNotes || []).find(n => n.id === noteId);
+    if (!noteToDelete) return;
+
+    try {
+      const studentDocRef = doc(db, 'students', student.id);
+      await updateDoc(studentDocRef, {
+        feedbackNotes: arrayRemove(noteToDelete)
+      });
+      toast({ title: 'Başarılı!', description: 'Not silindi.' });
+      fetchStudent();
+    } catch (error) {
+      console.error("Not silinirken hata:", error);
+      toast({ title: 'Hata', description: 'Not silinirken bir sorun oluştu.', variant: 'destructive' });
+    }
+  };
+  
+  const ReportCard: React.FC<{
+    title: string;
+    description: string;
+    context: ReportContext;
+    children: React.ReactNode;
+  }> = ({ title, description, context, children }) => {
+    const notes = student?.feedbackNotes?.filter(n => n.reportContext === context) || [];
+    return (
+      <Card>
+        <CardHeader>
+          <div className='flex justify-between items-start'>
+            <div>
+              <CardTitle>{title}</CardTitle>
+              <CardDescription>{description}</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => openFeedbackDialog(context)}>
+              <MessageSquarePlus className='mr-2 h-4 w-4'/> Not Ekle
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {children}
+        </CardContent>
+        {notes.length > 0 && (
+          <CardFooter className='flex-col items-start gap-4 pt-4 border-t'>
+            <h4 className='font-semibold text-sm'>Koçun Notları</h4>
+            {notes.sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()).map(note => (
+              <div key={note.id} className='text-xs p-3 bg-amber-50 border border-amber-200 rounded-lg w-full'>
+                <p className='text-muted-foreground mb-2'>
+                  {format(note.createdAt.toDate(), 'd MMMM yyyy, HH:mm', { locale: tr })}
+                  <Button variant='ghost' size='icon' className='h-6 w-6 float-right' onClick={() => handleFeedbackDelete(note.id)}>
+                    <MessageSquareX className='h-4 w-4 text-destructive' />
+                  </Button>
+                </p>
+                <p>{note.text}</p>
+              </div>
+            ))}
+          </CardFooter>
+        )}
+      </Card>
+    )
+  };
+
 
   if (loading || !student) {
     return (
@@ -415,7 +505,7 @@ export default function StudentDetailPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-3"><Skeleton className="h-96 w-full" /></div>
           <div className="lg:col-span-2"><Skeleton className="h-96 w-full" /></div>
-          <div><Skeleton className="h-80 w-full" /></div>
+          <div className="lg:col-span-5"><Skeleton className="h-80 w-full" /></div>
         </div>
       </div>
     );
@@ -444,6 +534,43 @@ export default function StudentDetailPage() {
           </Button>
       </div>
       <Separator />
+
+      {/* Settings Dialog for Feedback */}
+      <Dialog open={isNoteDialogOpen} onOpenChange={setNoteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Geri Bildirim Notu Ekle</DialogTitle>
+            <DialogDescription>
+              Bu rapor bölümü için öğrenciye bir not bırakın. Bu not öğrencinin raporlar sayfasında görünecektir.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...feedbackForm}>
+            <form onSubmit={feedbackForm.handleSubmit(handleFeedbackSubmit)} className="space-y-4">
+              <FormField
+                control={feedbackForm.control}
+                name="text"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notunuz</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Örn: Bu konudaki ilerlemen harika, devam et!" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="secondary">İptal</Button>
+                </DialogClose>
+                <Button type="submit" disabled={feedbackForm.formState.isSubmitting}>
+                  {feedbackForm.formState.isSubmitting ? "Kaydediliyor..." : "Notu Kaydet"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <h2 className="text-2xl font-bold tracking-tight mt-8">Öğrenci Ayarları</h2>
         <Separator className="my-4" />
@@ -783,8 +910,20 @@ export default function StudentDetailPage() {
             </div>
         </div>
         <div className="grid gap-6 mt-6">
-            <StrengthWeaknessMatrix studySessions={filteredSessions} />
-            <PerformanceEffortMatrix studySessions={filteredSessions} />
+            <ReportCard 
+              title="Konu Güçlü & Zayıf Yön Matrisi"
+              description="Farklı derslerdeki ve konulardaki performansınızı analiz edin."
+              context="StrengthWeaknessMatrix"
+            >
+              <StrengthWeaknessMatrix studySessions={filteredSessions} />
+            </ReportCard>
+             <ReportCard 
+              title="Performans/Efor Matrisi"
+              description="Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın."
+              context="PerformanceEffortMatrix"
+            >
+              <PerformanceEffortMatrix studySessions={filteredSessions} />
+            </ReportCard>
         </div>
       </div>
     </div>

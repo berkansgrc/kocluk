@@ -59,6 +59,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    // Set user display name if it's not set
+    if (!firebaseUser.displayName) {
+      // You can't directly update the user object, but this is for local state
+      // The actual update should happen during registration or in a profile page
+    }
+    
     setUser(firebaseUser);
 
     if (firebaseUser.email === ADMIN_EMAIL) {
@@ -77,6 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             studySessions: data.studySessions || [],
             assignments: data.assignments || [],
             resources: data.resources || [],
+            feedbackNotes: data.feedbackNotes || [],
           };
           setStudentData(validatedData);
         } else {
@@ -134,7 +141,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      // Manually trigger data fetch after successful sign-in, before router push
       await fetchStudentData(userCredential.user);
     } catch(error) {
       setLoading(false);

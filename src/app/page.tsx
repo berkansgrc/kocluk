@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
@@ -9,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import AssignmentsList from '@/components/dashboard/assignments-list';
 import DailyStreak from '@/components/dashboard/daily-streak';
+import FeedbackList from '@/components/dashboard/feedback-list';
 
 export default function DashboardPage() {
   const { user, studentData, loading, isAdmin } = useAuth();
@@ -63,6 +65,7 @@ export default function DashboardPage() {
               />
               <DailyStreak studySessions={studentData.studySessions || []} />
             </div>
+             <FeedbackList feedbackNotes={studentData.feedbackNotes || []} />
             <AIFeedback
               studentName={studentData.name}
               studySessions={studentData.studySessions || []}
