@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
@@ -26,6 +26,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import PerformanceEffortMatrix from '@/components/reports/performance-effort-matrix';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,10 +93,13 @@ export default function StudentDetailPage() {
 
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
 
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const assignmentForm = useForm<z.infer<typeof assignmentFormSchema>>({
     resolver: zodResolver(assignmentFormSchema),
@@ -361,6 +366,45 @@ export default function StudentDetailPage() {
       toast({ title: 'Hata', description: 'Ayarlar güncellenirken bir sorun oluştu.', variant: 'destructive' });
     }
   };
+  
+  const handleDownloadPdf = async () => {
+    const element = reportRef.current;
+    if (!element || !student) return;
+
+    setIsDownloading(true);
+    toast({ title: 'Rapor Oluşturuluyor...', description: 'Lütfen bekleyin, PDF dosyası hazırlanıyor.' });
+
+
+    const canvas = await html2canvas(element, {
+      scale: 2, // Higher scale for better quality
+      useCORS: true, 
+      logging: false,
+      backgroundColor: window.getComputedStyle(document.body).backgroundColor, // Match background
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4'
+    });
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    const ratio = canvasWidth / canvasHeight;
+    
+    const width = pdfWidth - 40; // with some margin
+    const height = width / ratio;
+
+    pdf.addImage(imgData, 'PNG', 20, 20, width, height);
+    pdf.save(`${student.name.replace(' ', '_')}-Rapor-${dateRangeDisplay.replace(' ', '_')}.pdf`);
+    setIsDownloading(false);
+    toast({ title: 'Başarılı!', description: 'Rapor PDF olarak indirildi.' });
+
+  };
 
   if (loading || !student) {
     return (
@@ -376,7 +420,6 @@ export default function StudentDetailPage() {
       </div>
     );
   }
-
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -698,11 +741,19 @@ export default function StudentDetailPage() {
             </Card>
         </div>
       </div>
+      
+      <div className="mt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold tracking-tight">Performans Analizi</h2>
+          <Button variant="outline" onClick={handleDownloadPdf} disabled={isDownloading}>
+            <Download className="mr-2 h-4 w-4" />
+            {isDownloading ? 'İndiriliyor...' : 'Raporu İndir'}
+          </Button>
+        </div>
+        <Separator className="my-4" />
+      </div>
 
-       <h2 className="text-2xl font-bold tracking-tight mt-8">Performans Analizi</h2>
-       <Separator />
-
-       <div className='flex flex-col items-center gap-4 mt-4'>
+       <div className='flex flex-col items-center gap-4'>
             <div className='flex items-center gap-2'>
                 <Button variant="outline" size="sm" onClick={() => { setTimeRange('weekly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'weekly' && 'bg-accent')}>Haftalık</Button>
                 <Button variant="outline" size="sm" onClick={() => { setTimeRange('monthly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'monthly' && 'bg-accent')}>Aylık</Button>
@@ -722,20 +773,20 @@ export default function StudentDetailPage() {
             )}
        </div>
        
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mt-6">
-        <div className="lg:col-span-3">
-          <SolvedQuestionsChart studySessions={filteredSessions} />
+      <div ref={reportRef} className="bg-background p-4 rounded-lg">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mt-6">
+            <div className="lg:col-span-3">
+            <SolvedQuestionsChart studySessions={filteredSessions} />
+            </div>
+            <div className="lg:col-span-2">
+            <StudyDurationChart studySessions={filteredSessions} />
+            </div>
         </div>
-        <div className="lg:col-span-2">
-          <StudyDurationChart studySessions={filteredSessions} />
+        <div className="grid gap-6 mt-6">
+            <StrengthWeaknessMatrix studySessions={filteredSessions} />
+            <PerformanceEffortMatrix studySessions={filteredSessions} />
         </div>
-      </div>
-      <div className="grid gap-6 mt-6">
-         <StrengthWeaknessMatrix studySessions={filteredSessions} />
-         <PerformanceEffortMatrix studySessions={filteredSessions} />
       </div>
     </div>
   );
 }
-
-    
