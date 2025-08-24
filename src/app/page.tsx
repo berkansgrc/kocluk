@@ -17,7 +17,6 @@ import AssignmentsList from '@/components/dashboard/assignments-list';
 import DailyStreak from '@/components/dashboard/daily-streak';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import NotificationAlert from '@/components/dashboard/notification-alert';
 
 export default function DashboardPage() {
   const { user, loading: authLoading, isAdmin } = useAuth();
@@ -194,8 +193,7 @@ export default function DashboardPage() {
     const weeklyPlan = studentData.weeklyPlan || [];
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <WelcomeHeader name={studentData.name} />
-        <NotificationAlert student={studentData} onClear={clearNotifications} />
+        <WelcomeHeader student={studentData} onClearNotifications={clearNotifications} />
         <Separator />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2 space-y-6">
@@ -259,5 +257,3 @@ export default function DashboardPage() {
   // Bu duruma normalde gelinmemeli, ancak bir fallback olarak eklendi.
   return <div className="p-8">Yükleniyor veya kullanıcı verisi bulunamadı...</div>;
 }
-
-    
