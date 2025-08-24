@@ -1,18 +1,18 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import type { Student, Assignment, Resource } from '@/lib/types';
+import type { Student, Assignment, Resource, StudySession } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil } from 'lucide-react';
+import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
@@ -47,6 +47,20 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+  sub,
+  add,
+  format,
+  fromUnixTime
+} from 'date-fns';
+import { tr } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 
 const assignmentFormSchema = z.object({
@@ -66,6 +80,7 @@ const settingsFormSchema = z.object({
   className: z.string().optional(),
 });
 
+type TimeRange = 'weekly' | 'monthly' | 'yearly' | 'all';
 
 export default function StudentDetailPage() {
   const params = useParams();
@@ -77,6 +92,9 @@ export default function StudentDetailPage() {
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+
+  const [timeRange, setTimeRange] = useState<TimeRange>('all');
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   const assignmentForm = useForm<z.infer<typeof assignmentFormSchema>>({
     resolver: zodResolver(assignmentFormSchema),
@@ -126,6 +144,74 @@ export default function StudentDetailPage() {
     
     fetchStudent();
   }, [studentId, toast, router, user, settingsForm]);
+
+    const { filteredSessions, dateRangeDisplay } = useMemo(() => {
+    if (!student || !student.studySessions) {
+      return { filteredSessions: [], dateRangeDisplay: '' };
+    }
+
+    const allSessions = student.studySessions.map(s => ({
+      ...s,
+      date: s.date && s.date.seconds ? fromUnixTime(s.date.seconds) : new Date(s.date)
+    })).filter(s => s.date instanceof Date && !isNaN(s.date.valueOf()));
+
+
+    if (timeRange === 'all') {
+      return { filteredSessions: allSessions, dateRangeDisplay: 'Tüm Zamanlar' };
+    }
+
+    let start: Date, end: Date;
+
+    switch (timeRange) {
+      case 'weekly':
+        start = startOfWeek(currentDate, { weekStartsOn: 1 });
+        end = endOfWeek(currentDate, { weekStartsOn: 1 });
+        break;
+      case 'monthly':
+        start = startOfMonth(currentDate);
+        end = endOfMonth(currentDate);
+        break;
+      case 'yearly':
+        start = startOfYear(currentDate);
+        end = endOfYear(currentDate);
+        break;
+    }
+    
+    const filtered = allSessions.filter(session => {
+        const sessionDate = session.date;
+        return sessionDate >= start && sessionDate <= end;
+    });
+
+    let dateRangeDisplay;
+    if (timeRange === 'weekly') {
+      dateRangeDisplay = `${format(start, 'd MMMM', { locale: tr })} - ${format(end, 'd MMMM yyyy', { locale: tr })}`;
+    } else if (timeRange === 'monthly') {
+      dateRangeDisplay = format(currentDate, 'MMMM yyyy', { locale: tr });
+    } else { // yearly
+      dateRangeDisplay = format(currentDate, 'yyyy', { locale: tr });
+    }
+
+    return { filteredSessions: filtered, dateRangeDisplay };
+  }, [student, timeRange, currentDate]);
+
+  const handleTimeNav = (direction: 'prev' | 'next') => {
+    const amount = direction === 'prev' ? -1 : 1;
+    let newDate;
+    switch (timeRange) {
+      case 'weekly':
+        newDate = add(currentDate, { weeks: amount });
+        break;
+      case 'monthly':
+        newDate = add(currentDate, { months: amount });
+        break;
+      case 'yearly':
+        newDate = add(currentDate, { years: amount });
+        break;
+      default:
+        return;
+    }
+    setCurrentDate(newDate);
+  };
 
   const handleAssignmentSubmit = async (values: z.infer<typeof assignmentFormSchema>) => {
     if (!student) return;
@@ -603,18 +689,38 @@ export default function StudentDetailPage() {
 
        <h2 className="text-2xl font-bold tracking-tight mt-8">Performans Analizi</h2>
        <Separator />
+
+       <div className='flex flex-col items-center gap-4 mt-4'>
+            <div className='flex items-center gap-2'>
+                <Button variant="outline" size="sm" onClick={() => setTimeRange('weekly')} className={cn(timeRange === 'weekly' && 'bg-accent')}>Haftalık</Button>
+                <Button variant="outline" size="sm" onClick={() => setTimeRange('monthly')} className={cn(timeRange === 'monthly' && 'bg-accent')}>Aylık</Button>
+                <Button variant="outline" size="sm" onClick={() => setTimeRange('yearly')} className={cn(timeRange === 'yearly' && 'bg-accent')}>Yıllık</Button>
+                <Button variant="outline" size="sm" onClick={() => setTimeRange('all')} className={cn(timeRange === 'all' && 'bg-accent')}>Tümü</Button>
+            </div>
+            {timeRange !== 'all' && (
+                <div className='flex items-center gap-4'>
+                    <Button variant="ghost" size="icon" onClick={() => handleTimeNav('prev')}>
+                        <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <p className='text-lg font-semibold text-center w-64'>{dateRangeDisplay}</p>
+                    <Button variant="ghost" size="icon" onClick={() => handleTimeNav('next')}>
+                        <ChevronRight className="h-5 w-5" />
+                    </Button>
+                </div>
+            )}
+       </div>
        
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mt-6">
         <div className="lg:col-span-3">
-          <SolvedQuestionsChart studySessions={student.studySessions || []} />
+          <SolvedQuestionsChart studySessions={filteredSessions} />
         </div>
         <div className="lg:col-span-2">
-          <StudyDurationChart studySessions={student.studySessions || []} />
+          <StudyDurationChart studySessions={filteredSessions} />
         </div>
       </div>
       <div className="grid gap-6 mt-6">
-         <StrengthWeaknessMatrix studySessions={student.studySessions || []} />
-         <PerformanceEffortMatrix studySessions={student.studySessions || []} />
+         <StrengthWeaknessMatrix studySessions={filteredSessions} />
+         <PerformanceEffortMatrix studySessions={filteredSessions} />
       </div>
     </div>
   );
