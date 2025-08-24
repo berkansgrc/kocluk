@@ -61,6 +61,7 @@ const studentFormSchema = z.object({
     .string()
     .email({ message: 'Lütfen geçerli bir e-posta adresi girin.' }),
   password: z.string().min(6, { message: 'Şifre en az 6 karakter olmalıdır.' }),
+  className: z.string().optional(),
 });
 
 export default function AdminPage() {
@@ -77,6 +78,7 @@ export default function AdminPage() {
       name: '',
       email: '',
       password: '',
+      className: '',
     },
   });
 
@@ -129,6 +131,7 @@ export default function AdminPage() {
       await setDoc(studentDocRef, {
         name: values.name,
         email: values.email,
+        className: values.className || '',
         weeklyQuestionGoal: 100,
         studySessions: [],
         assignments: [],
@@ -230,6 +233,7 @@ export default function AdminPage() {
                 onSubmit={studentForm.handleSubmit(onStudentSubmit)}
                 className="space-y-6"
               >
+                <div className='grid md:grid-cols-2 gap-4'>
                 <FormField
                   control={studentForm.control}
                   name="name"
@@ -243,6 +247,20 @@ export default function AdminPage() {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={studentForm.control}
+                  name="className"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sınıf</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Örn. 8-A (İsteğe Bağlı)" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                </div>
                 <FormField
                   control={studentForm.control}
                   name="email"
@@ -303,6 +321,7 @@ export default function AdminPage() {
                   <TableRow>
                     <TableHead>İsim Soyisim</TableHead>
                     <TableHead>E-posta Adresi</TableHead>
+                    <TableHead>Sınıf</TableHead>
                     <TableHead className="text-right">
                       Toplam Çözülen
                     </TableHead>
@@ -316,13 +335,13 @@ export default function AdminPage() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center">
+                      <TableCell colSpan={7} className="text-center">
                         Yükleniyor...
                       </TableCell>
                     </TableRow>
                   ) : students.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center">
+                      <TableCell colSpan={7} className="text-center">
                         Kayıtlı öğrenci bulunamadı.
                       </TableCell>
                     </TableRow>
@@ -342,6 +361,12 @@ export default function AdminPage() {
                             onClick={() => handleRowClick(student.id)}
                           >
                             {student.email}
+                          </TableCell>
+                           <TableCell
+                            className="cursor-pointer"
+                            onClick={() => handleRowClick(student.id)}
+                          >
+                            {student.className || '-'}
                           </TableCell>
                           <TableCell
                             className="text-right cursor-pointer"
@@ -414,3 +439,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

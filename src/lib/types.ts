@@ -28,8 +28,11 @@ export interface Student {
   id: string;
   name: string;
   email: string;
+  className?: string;
   weeklyQuestionGoal: number;
   studySessions: StudySession[];
   assignments?: Assignment[];
   resources?: Resource[];
 }
+
+    
