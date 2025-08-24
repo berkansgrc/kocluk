@@ -3,3 +3,4 @@ import { config } from 'dotenv';
 config();
 
 import '@/ai/flows/weakness-detector.ts';
+import '@/ai/flows/weekly-planner.ts';

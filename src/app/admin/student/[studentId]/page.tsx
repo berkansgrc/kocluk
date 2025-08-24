@@ -3,16 +3,16 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp, collection, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import type { Student, Assignment, Resource, StudySession } from '@/lib/types';
+import type { Student, Assignment, Resource, StudySession, Subject, WeeklyPlanItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight, Download, Bot } from 'lucide-react';
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
@@ -63,6 +63,8 @@ import {
 } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { generateWeeklyPlan } from '@/ai/flows/weekly-planner';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 
 const assignmentFormSchema = z.object({
@@ -92,8 +94,10 @@ export default function StudentDetailPage() {
   const studentId = params.studentId as string;
 
   const [student, setStudent] = useState<Student | null>(null);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isPlaning, setIsPlaning] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
 
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
@@ -119,10 +123,11 @@ export default function StudentDetailPage() {
     resolver: zodResolver(settingsFormSchema),
   });
 
-  const fetchStudent = useCallback(async () => {
+  const fetchStudentAndSubjects = useCallback(async () => {
     // No need to set loading to true here, it is handled in the effect
     if (!studentId || !user) return;
     try {
+      // Fetch student data
       const studentDocRef = doc(db, 'students', studentId);
       const studentDocSnap = await getDoc(studentDocRef);
       if (studentDocSnap.exists()) {
@@ -136,9 +141,15 @@ export default function StudentDetailPage() {
         toast({ title: 'Hata', description: 'Öğrenci bulunamadı.', variant: 'destructive' });
         router.push('/admin');
       }
+
+       // Fetch subjects
+      const subjectsQuerySnapshot = await getDocs(collection(db, 'subjects'));
+      const subjectsList = subjectsQuerySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subject));
+      setSubjects(subjectsList);
+
     } catch (error) {
-      console.error("Öğrenci verisi alınırken hata:", error);
-      toast({ title: 'Hata', description: 'Öğrenci verileri alınamadı.', variant: 'destructive' });
+      console.error("Öğrenci veya ders verisi alınırken hata:", error);
+      toast({ title: 'Hata', description: 'Gerekli veriler alınamadı.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -146,8 +157,8 @@ export default function StudentDetailPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetchStudent();
-  }, [fetchStudent]);
+    fetchStudentAndSubjects();
+  }, [fetchStudentAndSubjects]);
 
    const { filteredSessions, dateRangeDisplay } = useMemo(() => {
     if (!student || !student.studySessions) {
@@ -249,7 +260,7 @@ export default function StudentDetailPage() {
       });
       toast({ title: 'Başarılı!', description: 'Ödev başarıyla öğrenciye atandı.' });
       assignmentForm.reset();
-      fetchStudent(); // Re-fetch student to update state
+      fetchStudentAndSubjects(); // Re-fetch student to update state
     } catch (error) {
        console.error("Ödev atanırken hata:", error);
        toast({ title: 'Hata', description: 'Ödev atanırken bir sorun oluştu.', variant: 'destructive' });
@@ -269,7 +280,7 @@ export default function StudentDetailPage() {
         assignments: updatedAssignments
       });
       toast({ title: 'Başarılı!', description: 'Ödev başarıyla güncellendi.' });
-      fetchStudent();
+      fetchStudentAndSubjects();
       setEditingAssignment(null);
     } catch (error) {
       console.error("Ödev güncellenirken hata:", error);
@@ -291,7 +302,7 @@ export default function StudentDetailPage() {
         assignments: arrayRemove(assignmentInState)
       });
       toast({ title: 'Başarılı!', description: 'Ödev başarıyla silindi.' });
-      fetchStudent();
+      fetchStudentAndSubjects();
     } catch (error) {
        console.error("Ödev silinirken hata:", error);
        toast({ title: 'Hata', description: 'Ödev silinirken bir sorun oluştu.', variant: 'destructive' });
@@ -311,7 +322,7 @@ export default function StudentDetailPage() {
       });
       toast({ title: 'Başarılı!', description: 'Kaynak başarıyla eklendi.' });
       resourceForm.reset();
-      fetchStudent();
+      fetchStudentAndSubjects();
     } catch (error) {
       console.error("Kaynak eklenirken hata:", error);
       toast({ title: 'Hata', description: 'Kaynak eklenirken bir sorun oluştu.', variant: 'destructive' });
@@ -326,7 +337,7 @@ export default function StudentDetailPage() {
         resources: arrayRemove(resource)
       });
       toast({ title: 'Başarılı!', description: 'Kaynak başarıyla silindi.' });
-      fetchStudent();
+      fetchStudentAndSubjects();
     } catch (error) {
       console.error("Kaynak silinirken hata:", error);
       toast({ title: 'Hata', description: 'Kaynak silinirken bir sorun oluştu.', variant: 'destructive' });
@@ -361,10 +372,41 @@ export default function StudentDetailPage() {
         className: values.className || '',
       });
       toast({ title: 'Başarılı!', description: 'Öğrenci ayarları güncellendi.' });
-      fetchStudent();
+      fetchStudentAndSubjects();
     } catch (error) {
       console.error("Ayarlar güncellenirken hata:", error);
       toast({ title: 'Hata', description: 'Ayarlar güncellenirken bir sorun oluştu.', variant: 'destructive' });
+    }
+  };
+  
+  const handleGeneratePlan = async () => {
+    if (!student) return;
+    setIsPlaning(true);
+    toast({ title: 'Plan Oluşturuluyor...', description: 'Yapay zeka öğrencinin verilerini analiz ediyor, lütfen bekleyin.' });
+    try {
+      const planInput = {
+        studentName: student.name,
+        studySessions: (student.studySessions || []).map(s => ({
+          ...s,
+          topic: s.topic || 'Genel',
+        })),
+        subjects: subjects.map(s => s.name),
+      };
+      const result = await generateWeeklyPlan(planInput);
+      
+      const studentDocRef = doc(db, 'students', student.id);
+      await updateDoc(studentDocRef, {
+        weeklyPlan: result.plan
+      });
+
+      toast({ title: 'Başarılı!', description: 'Haftalık çalışma planı oluşturuldu ve öğrenciye atandı.' });
+      fetchStudentAndSubjects(); // Refresh data
+
+    } catch (error) {
+      console.error("Haftalık plan oluşturulurken hata:", error);
+      toast({ title: 'Hata', description: 'Plan oluşturulurken bir sorun oluştu.', variant: 'destructive' });
+    } finally {
+      setIsPlaning(false);
     }
   };
   
@@ -435,6 +477,54 @@ export default function StudentDetailPage() {
           </Button>
       </div>
       <Separator />
+
+       <h2 className="text-2xl font-bold tracking-tight mt-8">Haftalık Planlama</h2>
+        <Separator className="my-4" />
+         <div className="grid gap-6 md:grid-cols-1">
+           <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bot /> Yapay Zeka Destekli Haftalık Çalışma Planı Oluştur
+              </CardTitle>
+              <CardDescription>
+                Öğrencinin geçmiş performansını analiz ederek ona özel bir haftalık çalışma planı oluşturun.
+                Mevcut bir plan varsa üzerine yazılacaktır.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={handleGeneratePlan} disabled={isPlaning}>
+                {isPlaning ? 'Plan Oluşturuluyor...' : 'Haftalık Plan Oluştur ve Ata'}
+              </Button>
+            </CardContent>
+            {student.weeklyPlan && student.weeklyPlan.length > 0 && (
+                <CardFooter className="flex-col items-start">
+                    <h3 className='text-lg font-semibold mb-2'>Mevcut Plan</h3>
+                     <div className="rounded-md border w-full">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Gün</TableHead>
+                                    <TableHead>Ders</TableHead>
+                                    <TableHead>Konu</TableHead>
+                                    <TableHead>Hedef</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {student.weeklyPlan.map((item, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell className="font-medium">{item.day}</TableCell>
+                                        <TableCell>{item.subject}</TableCell>
+                                        <TableCell>{item.topic}</TableCell>
+                                        <TableCell>{item.goal}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardFooter>
+            )}
+           </Card>
+        </div>
 
       <h2 className="text-2xl font-bold tracking-tight mt-8">Öğrenci Ayarları</h2>
         <Separator className="my-4" />
@@ -783,7 +873,7 @@ export default function StudentDetailPage() {
                 <StrengthWeaknessMatrix studySessions={filteredSessions} />
               </CardContent>
             </Card>
-             <Card>
+            <Card>
               <CardHeader>
                 <CardTitle>Performans/Efor Matrisi</CardTitle>
                 <CardDescription>Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın.</CardDescription>

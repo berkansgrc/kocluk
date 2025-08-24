@@ -26,7 +26,7 @@ export interface Resource {
 }
 
 export interface Topic {
-  id: string;
+  id:string;
   name: string;
 }
 
@@ -36,6 +36,13 @@ export interface Subject {
   topics: Topic[];
 }
 
+export interface WeeklyPlanItem {
+    day: string;
+    subject: string;
+    topic: string;
+    goal: string;
+    reason: string;
+}
 
 export interface Student {
   id: string;
@@ -46,4 +53,5 @@ export interface Student {
   studySessions: StudySession[];
   assignments?: Assignment[];
   resources?: Resource[];
+  weeklyPlan?: WeeklyPlanItem[];
 }
