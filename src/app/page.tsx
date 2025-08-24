@@ -7,6 +7,7 @@ import StudySessionForm from '@/components/dashboard/study-session-form';
 import AIFeedback from '@/components/dashboard/ai-feedback';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import AssignmentsList from '@/components/dashboard/assignments-list';
 
 export default function DashboardPage() {
   const { user, studentData, loading, isAdmin } = useAuth();
@@ -23,6 +24,7 @@ export default function DashboardPage() {
         <Separator />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2 space-y-6">
+            <Skeleton className="h-40 w-full" />
             <Skeleton className="h-40 w-full" />
             <Skeleton className="h-40 w-full" />
           </div>
@@ -61,6 +63,7 @@ export default function DashboardPage() {
               studentName={studentData.name}
               studySessions={studentData.studySessions || []}
             />
+             <AssignmentsList assignments={studentData.assignments || []} />
           </div>
           <div className="lg:col-span-2">
             <StudySessionForm studentId={studentData.id} />
