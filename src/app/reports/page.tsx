@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import PerformanceEffortMatrix from '@/components/reports/performance-effort-matrix';
+import PerformanceTrendChart from '@/components/reports/performance-trend-chart';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
@@ -163,6 +164,7 @@ export default function ReportsPage() {
         <div className="grid gap-6 mt-6">
           <Skeleton className="h-80 w-full" />
           <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-96 w-full" />
         </div>
       </div>
     )
@@ -211,6 +213,15 @@ export default function ReportsPage() {
         </div>
       </div>
       <div className="grid gap-6 mt-6">
+        <Card>
+            <CardHeader>
+              <CardTitle>Ders Performans Trendi</CardTitle>
+              <CardDescription>Derslerdeki başarı oranının zaman içindeki değişimini inceleyin.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PerformanceTrendChart studySessions={filteredSessions} />
+            </CardContent>
+          </Card>
         <Card>
           <CardHeader>
             <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>

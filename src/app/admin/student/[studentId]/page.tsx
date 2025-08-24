@@ -63,6 +63,7 @@ import { tr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { generateWeeklyPlan } from '@/ai/flows/weekly-planner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import PerformanceTrendChart from '@/components/reports/performance-trend-chart';
 
 
 const assignmentFormSchema = z.object({
@@ -1016,6 +1017,15 @@ export default function StudentDetailPage() {
             </div>
         </div>
         <div className="grid gap-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Ders Performans Trendi</CardTitle>
+              <CardDescription>Derslerdeki başarı oranının zaman içindeki değişimini inceleyin.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PerformanceTrendChart studySessions={filteredSessions} />
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>
