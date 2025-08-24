@@ -59,9 +59,20 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+
+const GRADE_LEVELS = ["5", "6", "7", "8", "9", "10", "11", "12", "YKS"];
 
 const subjectFormSchema = z.object({
   name: z.string().min(2, { message: 'Ders adı en az 2 karakter olmalıdır.' }),
+  gradeLevel: z.string({ required_error: 'Lütfen bir sınıf seviyesi seçin.' }),
 });
 
 const topicFormSchema = z.object({
@@ -91,8 +102,7 @@ export default function LibraryPage() {
   });
 
   const fetchSubjects = useCallback(async () => {
-    // Prevent re-fetching if already loading
-    if (!loading) setLoading(true);
+    setLoading(true);
     try {
       const querySnapshot = await getDocs(collection(db, 'subjects'));
       const subjectsList = querySnapshot.docs.map((doc) => ({
@@ -110,22 +120,31 @@ export default function LibraryPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast, loading]);
+  }, [toast]);
 
   useEffect(() => {
     fetchSubjects();
-  }, []);
+  }, [fetchSubjects]);
+
+  const groupedSubjects = useMemo(() => {
+    return GRADE_LEVELS.map(grade => ({
+      grade,
+      subjects: subjects.filter(s => s.gradeLevel === grade),
+    }));
+  }, [subjects]);
+
 
   async function onSubjectSubmit(values: z.infer<typeof subjectFormSchema>) {
     setIsSubmitting(true);
     try {
       await addDoc(collection(db, 'subjects'), {
         name: values.name,
+        gradeLevel: values.gradeLevel,
         topics: [],
       });
       toast({
         title: 'Başarılı!',
-        description: `${values.name} dersi eklendi.`,
+        description: `${values.name} dersi ${values.gradeLevel}. sınıf seviyesine eklendi.`,
       });
       subjectForm.reset();
       await fetchSubjects();
@@ -145,8 +164,11 @@ export default function LibraryPage() {
     if (!editingSubject) return;
     try {
       const subjectDocRef = doc(db, 'subjects', editingSubject.id);
-      await updateDoc(subjectDocRef, { name: values.name });
-      toast({ title: 'Başarılı!', description: 'Ders adı güncellendi.' });
+      await updateDoc(subjectDocRef, { 
+        name: values.name,
+        gradeLevel: values.gradeLevel,
+       });
+      toast({ title: 'Başarılı!', description: 'Ders güncellendi.' });
       setEditingSubject(null);
       await fetchSubjects();
     } catch (error) {
@@ -224,7 +246,7 @@ export default function LibraryPage() {
           Ders & Konu Kütüphanesi
         </h1>
         <p className="text-muted-foreground">
-          Sistemdeki dersleri ve bu derslere ait konuları yönetin.
+          Sistemdeki dersleri ve bu derslere ait konuları sınıf seviyesine göre yönetin.
         </p>
       </div>
 
@@ -236,11 +258,33 @@ export default function LibraryPage() {
           <Form {...subjectForm}>
             <form onSubmit={subjectForm.handleSubmit(onSubjectSubmit)} className="flex items-start gap-4">
               <FormField
+                  control={subjectForm.control}
+                  name="gradeLevel"
+                  render={({ field }) => (
+                    <FormItem className="w-1/4">
+                      <FormLabel>Sınıf Seviyesi</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seviye seçin" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {GRADE_LEVELS.map(level => (
+                            <SelectItem key={level} value={level}>{level === 'YKS' ? 'YKS' : `${level}. Sınıf`}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              <FormField
                 control={subjectForm.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem className="flex-1">
-                    <FormLabel className='sr-only'>Ders Adı</FormLabel>
+                    <FormLabel>Ders Adı</FormLabel>
                     <FormControl>
                       <Input placeholder="Örn: Matematik" {...field} />
                     </FormControl>
@@ -248,7 +292,7 @@ export default function LibraryPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting} className="self-end">
                 {isSubmitting ? 'Ekleniyor...' : 'Ders Ekle'}
               </Button>
             </form>
@@ -256,117 +300,149 @@ export default function LibraryPage() {
         </CardContent>
       </Card>
       
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
-          {subjects.map((subject) => (
-              <Card key={subject.id}>
-                  <CardHeader>
-                      <CardTitle className='flex justify-between items-center'>
-                          <span className='flex items-center gap-2'>
-                            <Library className='w-6 h-6' />
-                            {subject.name}
-                          </span>
-                          <div className='flex items-center'>
-                             <Dialog onOpenChange={(open) => {
-                                if (!open) setEditingSubject(null);
-                                else {
-                                    setEditingSubject(subject);
-                                    editSubjectForm.reset({ name: subject.name });
-                                }
-                             }}>
-                                <DialogTrigger asChild>
-                                  <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Dersi Düzenle</DialogTitle>
-                                    </DialogHeader>
-                                    <Form {...editSubjectForm}>
-                                        <form id={`edit-subject-form-${subject.id}`} onSubmit={editSubjectForm.handleSubmit(handleEditSubject)} className="space-y-4">
-                                             <FormField
-                                                control={editSubjectForm.control}
-                                                name="name"
-                                                render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Ders Adı</FormLabel>
-                                                    <FormControl><Input {...field} /></FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                                )}
-                                            />
-                                        </form>
-                                    </Form>
-                                     <DialogFooter>
-                                        <DialogClose asChild>
-                                            <Button type="button" variant="secondary">İptal</Button>
-                                        </DialogClose>
-                                        <Button type="submit" form={`edit-subject-form-${subject.id}`} disabled={editSubjectForm.formState.isSubmitting}>
-                                            {editSubjectForm.formState.isSubmitting ? "Kaydediliyor..." : "Kaydet"}
-                                        </Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                             </Dialog>
-
-
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Bu işlem geri alınamaz. "{subject.name}" dersini ve içindeki tüm konuları kalıcı olarak silecektir.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>İptal</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteSubject(subject.id)}>
-                                        Sil
-                                    </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                      </CardTitle>
-                      <CardDescription>Bu derse ait konuları yönetin.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Form {...topicForm}>
-                        <form onSubmit={topicForm.handleSubmit((values) => onTopicSubmit(subject.id, values))} className='flex items-start gap-2 mb-4'>
-                             <FormField
-                                control={topicForm.control}
-                                name="name"
-                                render={({ field }) => (
-                                <FormItem className="flex-1">
-                                    <FormLabel className='sr-only'>Konu Adı</FormLabel>
-                                    <FormControl>
-                                    <Input placeholder="Yeni konu ekle" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <Button type="submit" size="sm" disabled={isSubmitting}><PlusCircle className='w-4 h-4 mr-2' /> Ekle</Button>
-                        </form>
-                    </Form>
-                    <div className='space-y-2 mt-4 max-h-48 overflow-y-auto pr-2'>
-                        {subject.topics && subject.topics.length > 0 ? (
-                           subject.topics.sort((a,b) => a.name.localeCompare(b.name)).map((topic) => (
-                               <div key={topic.id} className='flex items-center justify-between text-sm p-2 bg-muted/50 rounded-md'>
-                                   <span>{topic.name}</span>
-                                   <Button variant="ghost" size="icon" className='h-6 w-6' onClick={() => handleTopicDelete(subject.id, topic)}>
-                                       <XCircle className='w-4 h-4' />
-                                   </Button>
-                               </div>
-                           ))
-                        ) : (
-                            <p className='text-sm text-muted-foreground text-center py-4'>Henüz konu eklenmemiş.</p>
-                        )}
-                    </div>
-                  </CardContent>
-              </Card>
-          ))}
+      <div className="space-y-8 mt-6">
+        {groupedSubjects.map(({ grade, subjects: gradeSubjects }) => (
+          gradeSubjects.length > 0 && (
+            <div key={grade}>
+              <h2 className="text-2xl font-semibold font-headline mb-4">{grade === 'YKS' ? 'YKS' : `${grade}. Sınıf`}</h2>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {gradeSubjects.map((subject) => (
+                  <Card key={subject.id}>
+                    <CardHeader>
+                        <CardTitle className='flex justify-between items-center'>
+                            <span className='flex items-center gap-2'>
+                              <Library className='w-6 h-6' />
+                              {subject.name}
+                            </span>
+                            <div className='flex items-center'>
+                               <Dialog onOpenChange={(open) => {
+                                  if (!open) setEditingSubject(null);
+                                  else {
+                                      setEditingSubject(subject);
+                                      editSubjectForm.reset({ name: subject.name, gradeLevel: subject.gradeLevel });
+                                  }
+                               }}>
+                                  <DialogTrigger asChild>
+                                    <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                      <DialogHeader>
+                                          <DialogTitle>Dersi Düzenle</DialogTitle>
+                                      </DialogHeader>
+                                      <Form {...editSubjectForm}>
+                                          <form id={`edit-subject-form-${subject.id}`} onSubmit={editSubjectForm.handleSubmit(handleEditSubject)} className="space-y-4">
+                                               <FormField
+                                                  control={editSubjectForm.control}
+                                                  name="gradeLevel"
+                                                  render={({ field }) => (
+                                                    <FormItem>
+                                                      <FormLabel>Sınıf Seviyesi</FormLabel>
+                                                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                        <FormControl>
+                                                          <SelectTrigger>
+                                                            <SelectValue placeholder="Seviye seçin" />
+                                                          </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                          {GRADE_LEVELS.map(level => (
+                                                            <SelectItem key={level} value={level}>{level === 'YKS' ? 'YKS' : `${level}. Sınıf`}</SelectItem>
+                                                          ))}
+                                                        </SelectContent>
+                                                      </Select>
+                                                      <FormMessage />
+                                                    </FormItem>
+                                                  )}
+                                                />
+                                               <FormField
+                                                  control={editSubjectForm.control}
+                                                  name="name"
+                                                  render={({ field }) => (
+                                                  <FormItem>
+                                                      <FormLabel>Ders Adı</FormLabel>
+                                                      <FormControl><Input {...field} /></FormControl>
+                                                      <FormMessage />
+                                                  </FormItem>
+                                                  )}
+                                              />
+                                          </form>
+                                      </Form>
+                                       <DialogFooter>
+                                          <DialogClose asChild>
+                                              <Button type="button" variant="secondary">İptal</Button>
+                                          </DialogClose>
+                                          <Button type="submit" form={`edit-subject-form-${subject.id}`} disabled={editSubjectForm.formState.isSubmitting}>
+                                              {editSubjectForm.formState.isSubmitting ? "Kaydediliyor..." : "Kaydet"}
+                                          </Button>
+                                      </DialogFooter>
+                                  </DialogContent>
+                               </Dialog>
+                              <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                      <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                          Bu işlem geri alınamaz. "{subject.name}" dersini ve içindeki tüm konuları kalıcı olarak silecektir.
+                                      </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                      <AlertDialogCancel>İptal</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteSubject(subject.id)}>
+                                          Sil
+                                      </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                  </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                        </CardTitle>
+                        <CardDescription>Bu derse ait konuları yönetin.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Form {...topicForm}>
+                          <form onSubmit={topicForm.handleSubmit((values) => onTopicSubmit(subject.id, values))} className='flex items-start gap-2 mb-4'>
+                               <FormField
+                                  control={topicForm.control}
+                                  name="name"
+                                  render={({ field }) => (
+                                  <FormItem className="flex-1">
+                                      <FormLabel className='sr-only'>Konu Adı</FormLabel>
+                                      <FormControl>
+                                      <Input placeholder="Yeni konu ekle" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                                  )}
+                              />
+                              <Button type="submit" size="sm" disabled={isSubmitting}><PlusCircle className='w-4 h-4 mr-2' /> Ekle</Button>
+                          </form>
+                      </Form>
+                      <div className='space-y-2 mt-4 max-h-48 overflow-y-auto pr-2'>
+                          {subject.topics && subject.topics.length > 0 ? (
+                             subject.topics.sort((a,b) => a.name.localeCompare(b.name)).map((topic) => (
+                                 <div key={topic.id} className='flex items-center justify-between text-sm p-2 bg-muted/50 rounded-md'>
+                                     <span>{topic.name}</span>
+                                     <Button variant="ghost" size="icon" className='h-6 w-6' onClick={() => handleTopicDelete(subject.id, topic)}>
+                                         <XCircle className='w-4 h-4' />
+                                     </Button>
+                                 </div>
+                             ))
+                          ) : (
+                              <p className='text-sm text-muted-foreground text-center py-4'>Henüz konu eklenmemiş.</p>
+                          )}
+                      </div>
+                    </CardContent>
+                </Card>
+                ))}
+              </div>
+              <Separator className="mt-8" />
+            </div>
+          )
+        ))}
       </div>
     </div>
   );
 }
+
+    

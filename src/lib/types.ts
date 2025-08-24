@@ -1,5 +1,6 @@
 
 
+
 export interface Assignment {
   id: string;
   driveLink: string; 
@@ -33,6 +34,7 @@ export interface Topic {
 export interface Subject {
   id: string;
   name: string;
+  gradeLevel: string;
   topics: Topic[];
 }
 
@@ -55,3 +57,5 @@ export interface Student {
   resources?: Resource[];
   weeklyPlan?: WeeklyPlanItem[];
 }
+
+    

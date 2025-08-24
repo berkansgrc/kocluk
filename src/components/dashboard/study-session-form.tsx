@@ -25,12 +25,15 @@ import { useToast } from '@/hooks/use-toast';
 import { PlusCircle } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion, Timestamp, collection, getDocs } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import type { Subject } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '../ui/skeleton';
 
+const GRADE_LEVELS = ["5", "6", "7", "8", "9", "10", "11", "12", "YKS"];
+
 const formSchema = z.object({
+  gradeLevel: z.string({ required_error: 'Lütfen bir sınıf seviyesi seçin.' }),
   subject: z.string({ required_error: 'Lütfen bir ders seçin.' }),
   topic: z.string({ required_error: 'Lütfen bir konu seçin.' }),
   durationInMinutes: z.coerce.number().min(1, { message: 'Süre en az 1 dakika olmalıdır.' }),
@@ -60,8 +63,17 @@ export default function StudySessionForm({ studentId, onSessionAdded }: StudySes
     },
   });
 
+  const selectedGradeLevel = form.watch('gradeLevel');
   const selectedSubjectId = form.watch('subject');
-  const selectedSubject = subjects.find(s => s.id === selectedSubjectId);
+  
+  const filteredSubjects = useMemo(() => {
+    return subjects.filter(s => s.gradeLevel === selectedGradeLevel);
+  }, [subjects, selectedGradeLevel]);
+
+  const selectedSubject = useMemo(() => {
+    return subjects.find(s => s.id === selectedSubjectId);
+  }, [subjects, selectedSubjectId]);
+
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -80,6 +92,12 @@ export default function StudySessionForm({ studentId, onSessionAdded }: StudySes
     fetchSubjects();
   }, [toast]);
   
+  // Reset subject and topic when grade level changes
+  useEffect(() => {
+    form.resetField('subject');
+    form.resetField('topic');
+  }, [selectedGradeLevel, form]);
+
   // Reset topic when subject changes
   useEffect(() => {
     form.resetField('topic');
@@ -119,6 +137,7 @@ export default function StudySessionForm({ studentId, onSessionAdded }: StudySes
         description: `${subjectName} - ${topicName} çalışma oturumunuz kaydedildi.`,
       });
       form.reset({
+        gradeLevel: '',
         subject: '',
         topic: '',
         durationInMinutes: 0,
@@ -160,21 +179,21 @@ export default function StudySessionForm({ studentId, onSessionAdded }: StudySes
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
+                 <FormField
                   control={form.control}
-                  name="subject"
+                  name="gradeLevel"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Ders</FormLabel>
+                      <FormLabel>Sınıf Seviyesi</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Bir ders seçin" />
+                            <SelectValue placeholder="Bir seviye seçin" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {subjects.map(subject => (
-                            <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
+                          {GRADE_LEVELS.map(level => (
+                            <SelectItem key={level} value={level}>{level === 'YKS' ? 'YKS' : `${level}. Sınıf`}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -183,6 +202,29 @@ export default function StudySessionForm({ studentId, onSessionAdded }: StudySes
                   )}
                 />
                 <FormField
+                  control={form.control}
+                  name="subject"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ders</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={!selectedGradeLevel}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={!selectedGradeLevel ? "Önce seviye seçin" : "Bir ders seçin"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {filteredSubjects.map(subject => (
+                            <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
                   control={form.control}
                   name="topic"
                   render={({ field }) => (
@@ -204,7 +246,6 @@ export default function StudySessionForm({ studentId, onSessionAdded }: StudySes
                     </FormItem>
                   )}
                 />
-              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
@@ -256,3 +297,5 @@ export default function StudySessionForm({ studentId, onSessionAdded }: StudySes
     </Card>
   );
 }
+
+    
