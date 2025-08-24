@@ -41,6 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setLoading(true);
       if (firebaseUser) {
         setUser(firebaseUser);
         setIsAdmin(firebaseUser.email === ADMIN_EMAIL);
@@ -57,8 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 
   const login = async (email: string, pass: string) => {
-    await signInWithEmailAndPassword(auth, email, pass);
-    // onAuthStateChanged will handle setting the user state
+    return signInWithEmailAndPassword(auth, email, pass);
   };
 
   const logout = async () => {
