@@ -1,3 +1,4 @@
+
 'use client';
 
 import { 
@@ -70,12 +71,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const studentDocSnap = await getDoc(studentDocRef);
         if (studentDocSnap.exists()) {
           const data = studentDocSnap.data() as Omit<Student, 'id'>;
-          // Ensure nested arrays exist to prevent runtime errors
           const validatedData: Student = {
             id: studentDocSnap.id,
             ...data,
             studySessions: data.studySessions || [],
             assignments: data.assignments || [],
+            resources: data.resources || [],
           };
           setStudentData(validatedData);
         } else {
@@ -132,19 +133,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, pass: string) => {
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, pass);
-      // onAuthStateChanged will handle the rest
+      const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+      // Manually trigger data fetch after successful sign-in, before router push
+      await fetchStudentData(userCredential.user);
     } catch(error) {
-      setLoading(false); // Manually set loading to false on error
-      throw error; // re-throw error to be caught in login page
+      setLoading(false);
+      throw error;
     }
   };
 
   const logout = async () => {
-    setLoading(true);
     await signOut(auth);
+    setUser(null);
+    setStudentData(null);
+    setIsAdmin(false);
+    setLoading(false);
     router.push('/login');
-    // onAuthStateChanged will handle setting user, studentData, isAdmin and loading state
   };
   
   const refreshStudentData = useCallback(() => {

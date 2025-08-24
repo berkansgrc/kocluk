@@ -1,3 +1,4 @@
+
 export interface Assignment {
   id: string;
   driveLink: string;
@@ -14,6 +15,14 @@ export interface StudySession {
   questionsCorrect: number;
 }
 
+export interface Resource {
+  id: string;
+  title: string;
+  description: string;
+  link: string;
+  type: 'note' | 'exercise' | 'video';
+}
+
 export interface Student {
   id: string;
   name: string;
@@ -21,4 +30,5 @@ export interface Student {
   weeklyQuestionGoal: number;
   studySessions: StudySession[];
   assignments?: Assignment[];
+  resources?: Resource[];
 }

@@ -3,16 +3,16 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import type { Student, Assignment } from '@/lib/types';
+import type { Student, Assignment, Resource } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, BookCheck, FileUp, KeyRound } from 'lucide-react';
+import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2 } from 'lucide-react';
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
@@ -22,6 +22,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { sendPasswordResetEmail } from 'firebase/auth';
 
 const assignmentFormSchema = z.object({
@@ -29,11 +31,17 @@ const assignmentFormSchema = z.object({
   driveLink: z.string().url({ message: 'Lütfen geçerli bir Google Drive linki girin.' }),
 });
 
+const resourceFormSchema = z.object({
+  title: z.string().min(3, { message: "Başlık en az 3 karakter olmalıdır."}),
+  description: z.string().min(10, { message: "Açıklama en az 10 karakter olmalıdır."}),
+  link: z.string().url({ message: 'Lütfen geçerli bir URL girin.' }),
+  type: z.enum(['note', 'exercise', 'video'], { required_error: "Kaynak türü seçmek zorunludur."}),
+});
 
 export default function StudentDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth(); // isAdmin kontrolünü merkezi hook'a bırakıyoruz.
+  const { user } = useAuth();
   const { toast } = useToast();
   const studentId = params.studentId as string;
 
@@ -45,6 +53,10 @@ export default function StudentDetailPage() {
     defaultValues: { title: '', driveLink: '' },
   });
 
+  const resourceForm = useForm<z.infer<typeof resourceFormSchema>>({
+    resolver: zodResolver(resourceFormSchema),
+    defaultValues: { title: '', description: '', link: '', type: 'note'},
+  });
 
   useEffect(() => {
     if (!studentId || !user) return;
@@ -87,13 +99,48 @@ export default function StudentDetailPage() {
       });
       toast({ title: 'Başarılı!', description: 'Ödev başarıyla öğrenciye atandı.' });
       assignmentForm.reset();
-      // Refresh student data locally
       setStudent(prev => prev ? ({ ...prev, assignments: [...(prev.assignments || []), newAssignment] }) : null);
     } catch (error) {
        console.error("Ödev atanırken hata:", error);
        toast({ title: 'Hata', description: 'Ödev atanırken bir sorun oluştu.', variant: 'destructive' });
     }
   }
+
+  const handleResourceSubmit = async (values: z.infer<typeof resourceFormSchema>) => {
+    if (!student) return;
+    const newResource: Resource = {
+      id: new Date().toISOString(),
+      ...values
+    };
+    try {
+      const studentDocRef = doc(db, 'students', student.id);
+      await updateDoc(studentDocRef, {
+        resources: arrayUnion(newResource)
+      });
+      toast({ title: 'Başarılı!', description: 'Kaynak başarıyla eklendi.' });
+      resourceForm.reset();
+      setStudent(prev => prev ? ({ ...prev, resources: [...(prev.resources || []), newResource] }) : null);
+    } catch (error) {
+      console.error("Kaynak eklenirken hata:", error);
+      toast({ title: 'Hata', description: 'Kaynak eklenirken bir sorun oluştu.', variant: 'destructive' });
+    }
+  };
+
+  const handleResourceDelete = async (resource: Resource) => {
+    if (!student) return;
+    try {
+      const studentDocRef = doc(db, 'students', student.id);
+      await updateDoc(studentDocRef, {
+        resources: arrayRemove(resource)
+      });
+      toast({ title: 'Başarılı!', description: 'Kaynak başarıyla silindi.' });
+      setStudent(prev => prev ? ({ ...prev, resources: (prev.resources || []).filter(r => r.id !== resource.id) }) : null);
+    } catch (error) {
+      console.error("Kaynak silinirken hata:", error);
+      toast({ title: 'Hata', description: 'Kaynak silinirken bir sorun oluştu.', variant: 'destructive' });
+    }
+  };
+
 
   const handlePasswordReset = async () => {
     if (!student?.email) return;
@@ -113,9 +160,6 @@ export default function StudentDetailPage() {
     }
   };
 
-  // Yetki kontrolü artık useAuth hook'u tarafından yönetildiği için buradaki yönlendirme kaldırıldı.
-  // Bu, "render sırasında setState" hatasını çözer.
-  
   if (loading || !student) {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -226,6 +270,94 @@ export default function StudentDetailPage() {
               )}
             </CardContent>
         </Card>
+      </div>
+
+       <div className='mt-8'>
+        <h2 className="text-2xl font-bold tracking-tight">Kaynakları Yönet</h2>
+        <Separator className="my-4" />
+        <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+                 <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <BookOpen /> Yeni Kaynak Ekle
+                    </CardTitle>
+                    <CardDescription>
+                        Öğrenciye özel çalışma materyali (video, döküman, alıştırma) atayın.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Form {...resourceForm}>
+                        <form onSubmit={resourceForm.handleSubmit(handleResourceSubmit)} className="space-y-4">
+                            <FormField control={resourceForm.control} name="title" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Kaynak Başlığı</FormLabel>
+                                    <FormControl><Input placeholder="Örn. Türev Konu Anlatımı" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={resourceForm.control} name="description" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Açıklama</FormLabel>
+                                    <FormControl><Textarea placeholder="Kaynağın içeriği hakkında kısa bilgi." {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={resourceForm.control} name="link" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Kaynak Linki</FormLabel>
+                                    <FormControl><Input placeholder="https://www.youtube.com/..." {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                             <FormField control={resourceForm.control} name="type" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Kaynak Türü</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue placeholder="Bir tür seçin" /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="note">Ders Notu</SelectItem>
+                                            <SelectItem value="exercise">Alıştırma</SelectItem>
+                                            <SelectItem value="video">Video</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <Button type="submit" className="w-full" disabled={resourceForm.formState.isSubmitting}>
+                                {resourceForm.formState.isSubmitting ? 'Ekleniyor...' : 'Kaynağı Ekle'}
+                            </Button>
+                        </form>
+                    </Form>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Atanmış Kaynaklar</CardTitle>
+                    <CardDescription>Bu öğrenciye atanmış kaynakların listesi.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     {student.resources && student.resources.length > 0 ? (
+                        <ul className="space-y-2">
+                        {student.resources.map(res => (
+                            <li key={res.id} className="text-sm p-2 border rounded-md flex justify-between items-center group">
+                                <div className='flex flex-col'>
+                                    <a href={res.link} target='_blank' rel='noopener noreferrer' className='font-medium hover:underline'>{res.title}</a>
+                                    <span className='text-xs text-muted-foreground'>{res.description}</span>
+                                </div>
+                                <Button variant="ghost" size="icon" onClick={() => handleResourceDelete(res)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </li>
+                        ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">Henüz atanmış bir kaynak bulunmuyor.</p>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
       </div>
 
        <h2 className="text-2xl font-bold tracking-tight mt-8">Performans Analizi</h2>
