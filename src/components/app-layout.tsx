@@ -44,7 +44,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2 p-2">
             <Button variant="ghost" size="icon" className="h-9 w-9" asChild>
               <Link href="/">
-                <Target className="w-6 h-6 text-primary" />
+                <Target className="w-6 h-6 text-accent" />
               </Link>
             </Button>
             <div className="flex flex-col">
