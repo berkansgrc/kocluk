@@ -14,13 +14,6 @@ import {
   ReferenceLine,
   Label,
 } from 'recharts';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
 import type { StudySession } from '@/lib/types';
 
 interface PerformanceEffortMatrixProps {
@@ -106,68 +99,58 @@ export default function PerformanceEffortMatrix({ studySessions }: PerformanceEf
     return { data: processedData, avgDuration, avgAccuracy };
   }, [studySessions]);
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Performans/Efor Matrisi</CardTitle>
-        <CardDescription>
-          Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın. Baloncuk boyutu çözülen soru sayısını temsil eder.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {data.length > 0 ? (
-          <ResponsiveContainer width="100%" height={450}>
-            <ScatterChart
-              margin={{
-                top: 40,
-                right: 40,
-                bottom: 40,
-                left: 20,
-              }}
-            >
-              <XAxis 
-                type="number" 
-                dataKey="duration" 
-                name="Süre" 
-                unit=" dk" 
-                stroke="hsl(var(--foreground))"
-                label={{ value: 'Harcanan Toplam Zaman (dk)', position: 'insideBottom', offset: -20 }}
-              />
-              <YAxis 
-                type="number" 
-                dataKey="accuracy" 
-                name="Doğruluk" 
-                unit="%" 
-                domain={[0, 100]}
-                stroke="hsl(var(--foreground))"
-                label={{ value: 'Doğruluk Oranı (%)', angle: -90, position: 'insideLeft' }}
-              />
-              <ZAxis type="number" dataKey="questions" range={[100, 1000]} name="Soru Sayısı" />
-              <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />} />
-              
-              <ReferenceLine y={avgAccuracy} strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <ReferenceLine x={avgDuration} strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              
-              <Label value="Verimli Çalışma" position="insideTopRight" offset={10} fill={COLORS.quadrant1} />
-              <Label value="Güçlü Alanlar" position="insideTopLeft" offset={10} fill={COLORS.quadrant2} />
-              <Label value="Öncelikli Alanlar" position="insideBottomRight" offset={10} fill={COLORS.quadrant3} />
-              <Label value="Keşfedilmemiş" position="insideBottomLeft" offset={10} fill={COLORS.quadrant4} />
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[450px] w-full items-center justify-center">
+        <p className="text-muted-foreground">Grafiği oluşturmak için yeterli veri yok.</p>
+      </div>
+    );
+  }
 
-              <Scatter data={data} fill="hsl(var(--primary))">
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[`quadrant${entry.quadrant}` as keyof typeof COLORS]} />
-                ))}
-              </Scatter>
-            </ScatterChart>
-          </ResponsiveContainer>
-        ) : (
-            <div className="flex h-[450px] w-full items-center justify-center">
-                <p className="text-muted-foreground">Grafiği oluşturmak için yeterli veri yok.</p>
-            </div>
-        )}
-      </CardContent>
-    </Card>
+  return (
+    <ResponsiveContainer width="100%" height={450}>
+        <ScatterChart
+        margin={{
+            top: 40,
+            right: 40,
+            bottom: 40,
+            left: 20,
+        }}
+        >
+        <XAxis 
+            type="number" 
+            dataKey="duration" 
+            name="Süre" 
+            unit=" dk" 
+            stroke="hsl(var(--foreground))"
+            label={{ value: 'Harcanan Toplam Zaman (dk)', position: 'insideBottom', offset: -20 }}
+        />
+        <YAxis 
+            type="number" 
+            dataKey="accuracy" 
+            name="Doğruluk" 
+            unit="%" 
+            domain={[0, 100]}
+            stroke="hsl(var(--foreground))"
+            label={{ value: 'Doğruluk Oranı (%)', angle: -90, position: 'insideLeft' }}
+        />
+        <ZAxis type="number" dataKey="questions" range={[100, 1000]} name="Soru Sayısı" />
+        <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />} />
+        
+        <ReferenceLine y={avgAccuracy} strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <ReferenceLine x={avgDuration} strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        
+        <Label value="Verimli Çalışma" position="insideTopRight" offset={10} fill={COLORS.quadrant1} />
+        <Label value="Güçlü Alanlar" position="insideTopLeft" offset={10} fill={COLORS.quadrant2} />
+        <Label value="Öncelikli Alanlar" position="insideBottomRight" offset={10} fill={COLORS.quadrant3} />
+        <Label value="Keşfedilmemiş" position="insideBottomLeft" offset={10} fill={COLORS.quadrant4} />
+
+        <Scatter data={data} fill="hsl(var(--primary))">
+            {data.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={COLORS[`quadrant${entry.quadrant}` as keyof typeof COLORS]} />
+            ))}
+        </Scatter>
+        </ScatterChart>
+    </ResponsiveContainer>
   );
 }
-
-    
