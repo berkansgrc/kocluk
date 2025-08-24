@@ -79,7 +79,11 @@ function LayoutContent({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  if (loading || (!user && protectedRoutes.some(route => pathname.startsWith(route)))) {
+  if (loading) {
+    return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
+  }
+  
+  if (!user && protectedRoutes.some(route => pathname.startsWith(route))) {
     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
   
