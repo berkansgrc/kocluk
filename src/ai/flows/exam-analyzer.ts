@@ -1,5 +1,5 @@
 
-'use client';
+'use server';
 
 /**
  * @fileOverview AI tool to analyze trial exam results and provide detailed feedback.
