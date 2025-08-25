@@ -21,6 +21,7 @@ import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Li
 import { Button } from './ui/button';
 import { useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from './ui/skeleton';
 
 const navItems = [
   { href: '/', label: 'Anasayfa', icon: LayoutDashboard, adminOnly: false },
@@ -67,16 +68,25 @@ function LayoutContent({ children }: { children: ReactNode }) {
   }, [user, isAdmin, loading, pathname, router, toast]);
 
   if (loading) {
-    return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
-  }
-
-  // If we are on the login page, don't render the app layout
-  if (pathname === '/login') {
-    return <>{children}</>;
+     return (
+      <div className="flex h-screen w-screen items-center justify-center">
+         <div className="flex items-center gap-4">
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-[250px]" />
+              <Skeleton className="h-4 w-[200px]" />
+            </div>
+         </div>
+       </div>
+     );
   }
   
   if (!user) {
-    return <div className="flex h-screen w-screen items-center justify-center">Yönlendiriliyor...</div>;
+    return (
+       <div className="flex h-screen w-screen items-center justify-center">
+         Yönlendiriliyor...
+       </div>
+    );
   }
   
   const visibleNavItems = navItems.filter(item => {
@@ -134,10 +144,12 @@ function LayoutContent({ children }: { children: ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
           <SidebarTrigger className="sm:hidden" />
         </header>
-        {children}
+        <main className='flex-1 overflow-auto'>
+         {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );

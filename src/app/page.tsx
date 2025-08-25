@@ -219,9 +219,9 @@ function PageContent() {
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
           <WelcomeHeader student={studentData} onClearNotifications={clearNotifications} />
           <Separator />
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <WeeklyProgress
                   studySessions={studentData.studySessions || []}
                   weeklyGoal={studentData.weeklyQuestionGoal}
@@ -239,7 +239,7 @@ function PageContent() {
               />
               <AssignmentsList assignments={studentData.assignments || []} />
             </div>
-            <div className="lg:col-span-2">
+            <div className="space-y-6">
               <StudySessionForm studentId={studentData.id} onSessionAdded={handleSessionAdded} />
             </div>
           </div>
@@ -251,7 +251,7 @@ function PageContent() {
                   <CardDescription>Koçun tarafından senin için özel olarak hazırlanan yol haritası.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="rounded-md border">
+                  <div className="rounded-md border overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -314,5 +314,3 @@ export default function DashboardPage() {
     </AppLayout>
   )
 }
-
-    

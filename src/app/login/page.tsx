@@ -21,6 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Target } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Lütfen geçerli bir e-posta adresi girin.' }),
@@ -77,16 +78,26 @@ export default function LoginPage() {
   };
   
   if (loading || user) {
-     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
+     return (
+       <div className="flex h-screen w-screen items-center justify-center">
+         <div className="flex flex-col items-center gap-4">
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-[250px]" />
+              <Skeleton className="h-4 w-[200px]" />
+            </div>
+         </div>
+       </div>
+     )
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <div className='absolute top-8 left-8 flex items-center gap-2'>
+    <div className="flex min-h-screen w-full items-center justify-center bg-background p-4 relative">
+        <div className='absolute top-6 left-6 flex items-center gap-2'>
              <Target className="w-8 h-8 text-accent" />
              <h1 className='text-2xl font-bold font-headline'>Berkan Hoca</h1>
         </div>
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md mx-auto">
         <CardHeader>
           <CardTitle>Giriş Yap</CardTitle>
           <CardDescription>
@@ -116,5 +127,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    

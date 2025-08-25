@@ -86,7 +86,7 @@ function DenemeAnaliziContent() {
                 <p className="text-muted-foreground">Deneme sınavı sonuçlarını kazanım bazında girerek detaylı analiz ve kişiselleştirilmiş geri bildirimler al.</p>
             </div>
             <Separator />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="lg:col-span-1">
                     <Card>
                         <CardHeader>
@@ -172,7 +172,7 @@ function DenemeAnaliziContent() {
                         </CardContent>
                     </Card>
                 </div>
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-1">
                     <Card className="min-h-[600px] sticky top-20">
                         <CardHeader>
                             <CardTitle>Yapay Zeka Analiz Sonucu</CardTitle>
@@ -206,7 +206,7 @@ function DenemeAnaliziContent() {
                                         <p className="mt-4 text-sm text-foreground/80">{analysis.generalFeedback}</p>
                                     </div>
                                     <Separator />
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <h3 className="text-lg font-semibold flex items-center gap-2"><TrendingUp className="text-emerald-500" /> Güçlü Olduğun Kazanımlar</h3>
                                             <div className='mt-2 flex flex-col items-start gap-1'>
@@ -249,5 +249,3 @@ export default function DenemeAnaliziPage() {
         </AppLayout>
     );
 }
-
-    

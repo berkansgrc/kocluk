@@ -540,7 +540,7 @@ function StudentDetailPageContent() {
                   <Skeleton className="h-10 w-36" />
                 </div>
                 <Separator className="my-4" />
-                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mt-6">
+                 <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-5 mt-6">
                     <div className="lg:col-span-3">
                       <Skeleton className="h-96 w-full" />
                     </div>
@@ -556,42 +556,44 @@ function StudentDetailPageContent() {
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2">
         <div>
-           <Button variant="ghost" size="sm" asChild className="mb-4">
+           <Button variant="ghost" size="sm" asChild className="mb-2">
             <Link href="/admin">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Geri Dön
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight font-headline">
-            {student.name} - Öğrenci Detayları
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline">
+            {student.name}
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground break-words">
             {student.email} {student.className && `• ${student.className}`}
           </p>
         </div>
-          <Button variant="outline" onClick={handlePasswordReset}>
+        <div className="pt-2">
+          <Button variant="outline" onClick={handlePasswordReset} className="w-full sm:w-auto">
             <KeyRound className="mr-2 h-4 w-4" />
-            Şifre Sıfırlama E-postası Gönder
+            Şifre Sıfırlama E-postası
           </Button>
+        </div>
       </div>
       <Separator />
 
        <div className='mt-6'>
        <h2 className="text-2xl font-bold tracking-tight">Haftalık Planlama</h2>
         <Separator className="my-4" />
-         <div className="grid gap-6 md:grid-cols-1">
+         <div className="grid grid-cols-1 gap-6">
            <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 justify-between">
+              <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
                 <span className='flex items-center gap-2'>
-                  <Bot /> Yapay Zeka Destekli Haftalık Çalışma Planı
+                  <Bot /> Yapay Zeka Destekli Plan
                 </span>
                 {student.weeklyPlan && student.weeklyPlan.length > 0 && !generatedPlan && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm"><Trash2 className='w-4 h-4 mr-2'/> Planı Sil</Button>
+                      <Button variant="destructive" size="sm" className='mt-2 sm:mt-0'><Trash2 className='w-4 h-4 mr-2'/> Planı Sil</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
@@ -610,7 +612,6 @@ function StudentDetailPageContent() {
               </CardTitle>
               <CardDescription>
                 Öğrencinin geçmiş performansını analiz ederek ona özel bir haftalık çalışma planı oluşturun.
-                Mevcut bir plan varsa üzerine yazılacaktır.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -625,7 +626,7 @@ function StudentDetailPageContent() {
                   <Form {...planForm}>
                     <form onSubmit={planForm.handleSubmit(handleSavePlan)} className="w-full space-y-4">
                         <h3 className='text-lg font-semibold mb-2'>{generatedPlan ? "Düzenlenebilir Taslak Plan" : "Mevcut Plan"}</h3>
-                        <div className="rounded-md border w-full">
+                        <div className="rounded-md border w-full overflow-x-auto">
                           <Table>
                               <TableHeader>
                                   <TableRow>
@@ -677,7 +678,7 @@ function StudentDetailPageContent() {
       <div className='mt-8'>
         <h2 className="text-2xl font-bold tracking-tight">Öğrenci Ayarları</h2>
           <Separator className="my-4" />
-          <div className="grid gap-6 md:grid-cols-1">
+          <div className="grid grid-cols-1 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -690,7 +691,7 @@ function StudentDetailPageContent() {
               <CardContent>
                 <Form {...settingsForm}>
                   <form onSubmit={settingsForm.handleSubmit(handleSettingsSubmit)} className="space-y-4">
-                    <div className='grid md:grid-cols-2 gap-4'>
+                    <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                     <FormField
                       control={settingsForm.control}
                       name="weeklyQuestionGoal"
@@ -718,7 +719,7 @@ function StudentDetailPageContent() {
                       )}
                     />
                     </div>
-                    <Button type="submit" className="w-full" disabled={settingsForm.formState.isSubmitting}>
+                    <Button type="submit" className="w-full sm:w-auto" disabled={settingsForm.formState.isSubmitting}>
                       {settingsForm.formState.isSubmitting ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
                     </Button>
                   </form>
@@ -977,9 +978,9 @@ function StudentDetailPageContent() {
       </div>
       
       <div className="mt-8">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-2xl font-bold tracking-tight">Performans Analizi</h2>
-          <Button variant="outline" onClick={handleDownloadPdf} disabled={isDownloading}>
+          <Button variant="outline" onClick={handleDownloadPdf} disabled={isDownloading} className='mt-2 sm:mt-0'>
             <Download className="mr-2 h-4 w-4" />
             {isDownloading ? 'İndiriliyor...' : 'Raporu İndir'}
           </Button>
@@ -988,7 +989,7 @@ function StudentDetailPageContent() {
       </div>
 
        <div className='flex flex-col items-center gap-4'>
-            <div className='flex items-center gap-2'>
+            <div className='flex items-center gap-2 flex-wrap justify-center'>
                 <Button variant="outline" size="sm" onClick={() => { setTimeRange('weekly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'weekly' && 'bg-accent')}>Haftalık</Button>
                 <Button variant="outline" size="sm" onClick={() => { setTimeRange('monthly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'monthly' && 'bg-accent')}>Aylık</Button>
                 <Button variant="outline" size="sm" onClick={() => { setTimeRange('yearly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'yearly' && 'bg-accent')}>Yıllık</Button>
@@ -999,7 +1000,7 @@ function StudentDetailPageContent() {
                     <Button variant="ghost" size="icon" onClick={() => handleTimeNav('prev')}>
                         <ChevronLeft className="h-5 w-5" />
                     </Button>
-                    <p className='text-lg font-semibold text-center w-64'>{dateRangeDisplay}</p>
+                    <p className='text-lg font-semibold text-center w-48 sm:w-64'>{dateRangeDisplay}</p>
                     <Button variant="ghost" size="icon" onClick={() => handleTimeNav('next')}>
                         <ChevronRight className="h-5 w-5" />
                     </Button>
@@ -1007,8 +1008,8 @@ function StudentDetailPageContent() {
             )}
        </div>
        
-      <div ref={reportRef} className="bg-background p-4 rounded-lg">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mt-6">
+      <div ref={reportRef} className="bg-background p-0 sm:p-4 rounded-lg">
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-5 mt-6">
             <div className="lg:col-span-3">
             <SolvedQuestionsChart studySessions={filteredSessions} />
             </div>

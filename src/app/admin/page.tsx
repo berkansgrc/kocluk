@@ -260,7 +260,7 @@ function AdminPageContent() {
       </div>
       <Separator />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -321,7 +321,7 @@ function AdminPageContent() {
                 onSubmit={studentForm.handleSubmit(onStudentSubmit)}
                 className="space-y-6"
               >
-                <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-6'>
+                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
                     <FormField control={studentForm.control} name="name" render={({ field }) => (
                       <FormItem>
                         <FormLabel>İsim Soyisim</FormLabel>
@@ -354,7 +354,7 @@ function AdminPageContent() {
                 
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full sm:w-auto"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
@@ -389,13 +389,13 @@ function AdminPageContent() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>İsim Soyisim</TableHead>
-                    <TableHead>E-posta</TableHead>
-                    <TableHead>Sınıf</TableHead>
-                    <TableHead className="text-right">
+                    <TableHead className="hidden md:table-cell">E-posta</TableHead>
+                    <TableHead className="hidden sm:table-cell">Sınıf</TableHead>
+                    <TableHead className="text-right hidden lg:table-cell">
                       Toplam Çözülen
                     </TableHead>
-                    <TableHead className="text-right">Ortalama Başarı</TableHead>
-                    <TableHead className="text-right">
+                    <TableHead className="text-right hidden lg:table-cell">Ortalama Başarı</TableHead>
+                    <TableHead className="text-right hidden lg:table-cell">
                       Toplam Süre (dk)
                     </TableHead>
                     <TableHead className="text-right">İşlemler</TableHead>
@@ -424,21 +424,24 @@ function AdminPageContent() {
                           onClick={() => handleRowClick(student.id)}
                         >
                           <TableCell className="font-medium">
-                            {student.name}
+                            <div className="flex flex-col">
+                              <span>{student.name}</span>
+                              <span className="text-muted-foreground text-sm md:hidden">{student.email}</span>
+                            </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden md:table-cell">
                             {student.email}
                           </TableCell>
-                           <TableCell>
+                           <TableCell className="hidden sm:table-cell">
                             {student.className || '-'}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right hidden lg:table-cell">
                             {stats.totalSolved}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right hidden lg:table-cell">
                             {stats.averageAccuracy.toFixed(1)}%
                           </TableCell>
-                           <TableCell className="text-right">
+                           <TableCell className="text-right hidden lg:table-cell">
                             {stats.totalDuration}
                           </TableCell>
                           <TableCell className="text-right">
@@ -505,5 +508,3 @@ export default function AdminPage() {
         </AppLayout>
     )
 }
-
-    

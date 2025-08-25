@@ -154,13 +154,9 @@ function ReportsPageContent() {
             <Skeleton className="h-4 w-96 mt-2" />
           </div>
         <Separator />
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mt-6">
-          <div className="lg:col-span-3">
-             <Skeleton className="h-96 w-full" />
-          </div>
-          <div className="lg:col-span-2">
-             <Skeleton className="h-96 w-full" />
-          </div>
+        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mt-6">
+          <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-96 w-full" />
         </div>
         <div className="grid gap-6 mt-6">
           <Skeleton className="h-80 w-full" />
@@ -186,7 +182,7 @@ function ReportsPageContent() {
       <Separator />
 
       <div className='flex flex-col items-center gap-4 py-4'>
-            <div className='flex items-center gap-2'>
+            <div className='flex items-center gap-2 flex-wrap justify-center'>
                 <Button variant="outline" size="sm" onClick={() => { setTimeRange('weekly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'weekly' && 'bg-accent')}>Haftalık</Button>
                 <Button variant="outline" size="sm" onClick={() => { setTimeRange('monthly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'monthly' && 'bg-accent')}>Aylık</Button>
                 <Button variant="outline" size="sm" onClick={() => { setTimeRange('yearly'); setCurrentDate(new Date()); }} className={cn(timeRange === 'yearly' && 'bg-accent')}>Yıllık</Button>
@@ -197,7 +193,7 @@ function ReportsPageContent() {
                     <Button variant="ghost" size="icon" onClick={() => handleTimeNav('prev')}>
                         <ChevronLeft className="h-5 w-5" />
                     </Button>
-                    <p className='text-lg font-semibold text-center w-64'>{dateRangeDisplay}</p>
+                    <p className='text-lg font-semibold text-center w-48 sm:w-64'>{dateRangeDisplay}</p>
                     <Button variant="ghost" size="icon" onClick={() => handleTimeNav('next')}>
                         <ChevronRight className="h-5 w-5" />
                     </Button>
@@ -205,13 +201,9 @@ function ReportsPageContent() {
             )}
        </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mt-6">
-        <div className="lg:col-span-3">
-          <SolvedQuestionsChart studySessions={filteredSessions} />
-        </div>
-        <div className="lg:col-span-2">
-          <StudyDurationChart studySessions={filteredSessions} />
-        </div>
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mt-6">
+        <SolvedQuestionsChart studySessions={filteredSessions} />
+        <StudyDurationChart studySessions={filteredSessions} />
       </div>
       <div className="grid gap-6 mt-6">
         <Card>
