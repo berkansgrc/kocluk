@@ -14,7 +14,11 @@ const LONG_BREAK_MINS = 15;
 
 type TimerMode = 'work' | 'shortBreak' | 'longBreak';
 
-export default function PomodoroTimer() {
+interface PomodoroTimerProps {
+  onWorkSessionComplete: () => void;
+}
+
+export default function PomodoroTimer({ onWorkSessionComplete }: PomodoroTimerProps) {
   const { toast } = useToast();
   const [mode, setMode] = useState<TimerMode>('work');
   const [timeRemaining, setTimeRemaining] = useState(WORK_MINS * 60);
@@ -60,6 +64,7 @@ export default function PomodoroTimer() {
     } else if (isActive && timeRemaining === 0) {
       playSound();
       if (mode === 'work') {
+        onWorkSessionComplete(); // Notify parent that a work session is complete
         const newSessionsCompleted = sessionsCompleted + 1;
         setSessionsCompleted(newSessionsCompleted);
         const nextMode = newSessionsCompleted % 4 === 0 ? 'longBreak' : 'shortBreak';
@@ -74,7 +79,7 @@ export default function PomodoroTimer() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, timeRemaining, mode, sessionsCompleted, switchMode, toast]);
+  }, [isActive, timeRemaining, mode, sessionsCompleted, switchMode, toast, onWorkSessionComplete]);
 
   const toggleTimer = () => setIsActive(prev => !prev);
   const resetTimer = () => switchMode(mode);
