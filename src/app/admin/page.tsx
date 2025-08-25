@@ -33,7 +33,6 @@ import {
   deleteDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import type { Student } from '@/lib/types';
 import {
@@ -67,8 +66,6 @@ const studentFormSchema = z.object({
     .email({ message: 'Lütfen geçerli bir e-posta adresi girin.' }),
   password: z.string().min(6, { message: 'Şifre en az 6 karakter olmalıdır.' }),
   className: z.string().optional(),
-  parentEmail: z.string().email({ message: 'Lütfen geçerli bir veli e-posta adresi girin.' }),
-  parentPassword: z.string().min(6, { message: 'Veli şifresi en az 6 karakter olmalıdır.' }),
 });
 
 function AdminPageContent() {
@@ -86,8 +83,6 @@ function AdminPageContent() {
       email: '',
       password: '',
       className: '',
-      parentEmail: '',
-      parentPassword: '',
     },
   });
 
@@ -150,36 +145,22 @@ function AdminPageContent() {
 
   async function onStudentSubmit(values: z.infer<typeof studentFormSchema>) {
     setIsSubmitting(true);
-    let studentUser, parentUser;
+    let studentUser;
   
     try {
-      // Firebase'in en son sürüm API'larını kullanmak için dinamik import
       const { initializeApp, deleteApp } = await import('firebase/app');
       const { getAuth, createUserWithEmailAndPassword } = await import('firebase/auth');
       
-      const createTempAuth = (name: string) => {
-        const tempAppName = `${name}-${Date.now()}`;
-        const tempApp = initializeApp(auth.app.options, tempAppName);
-        return { auth: getAuth(tempApp), app: tempApp };
-      };
-
-      // Create Parent User in a temporary auth instance
-      const { auth: tempAuthParent, app: tempAppParent } = createTempAuth('parent-auth');
-      const parentUserCredential = await createUserWithEmailAndPassword(tempAuthParent, values.parentEmail, values.parentPassword);
-      parentUser = parentUserCredential.user;
-      await deleteApp(tempAppParent);
+      const tempAppName = `student-auth-${Date.now()}`;
+      const tempApp = initializeApp(auth.app.options, tempAppName);
+      const tempAuth = getAuth(tempApp);
       
-      // Create Student User in another temporary auth instance
-      const { auth: tempAuthStudent, app: tempAppStudent } = createTempAuth('student-auth');
-      const studentUserCredential = await createUserWithEmailAndPassword(tempAuthStudent, values.email, values.password);
+      const studentUserCredential = await createUserWithEmailAndPassword(tempAuth, values.email, values.password);
       studentUser = studentUserCredential.user;
-      await deleteApp(tempAppStudent);
+      await deleteApp(tempApp);
 
-
-      // Use a batch write to ensure all or nothing
       const batch = writeBatch(db);
 
-      // 1. Create student document
       const studentDocRef = doc(db, 'students', studentUser.uid);
       batch.set(studentDocRef, {
         name: values.name,
@@ -188,11 +169,8 @@ function AdminPageContent() {
         weeklyQuestionGoal: 100,
         studySessions: [],
         assignments: [],
-        parentEmail: values.parentEmail,
-        parentId: parentUser.uid,
       });
 
-      // 2. Create student user document in 'users' collection
       const studentUserDocRef = doc(db, 'users', studentUser.uid);
       batch.set(studentUserDocRef, {
         uid: studentUser.uid,
@@ -200,30 +178,21 @@ function AdminPageContent() {
         role: 'student',
       });
 
-      // 3. Create parent user document in 'users' collection
-      const parentUserDocRef = doc(db, 'users', parentUser.uid);
-      batch.set(parentUserDocRef, {
-        uid: parentUser.uid,
-        email: values.parentEmail,
-        role: 'parent',
-        studentId: studentUser.uid, // Link parent to student
-      });
-
       await batch.commit();
   
       toast({
-        title: 'Öğrenci ve Veli Eklendi!',
-        description: `${values.name} ve velisi başarıyla oluşturuldu.`,
+        title: 'Öğrenci Eklendi!',
+        description: `${values.name} başarıyla oluşturuldu.`,
       });
   
       studentForm.reset();
       fetchStudents();
   
     } catch (error: any) {
-      console.error('Öğrenci/Veli eklenirken hata: ', error);
+      console.error('Öğrenci eklenirken hata: ', error);
       let errorMessage = 'Kullanıcı oluşturulurken bir sorun oluştu.';
       if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'Bu e-posta adreslerinden biri zaten başka bir hesap tarafından kullanılıyor.';
+        errorMessage = 'Bu e-posta adresi zaten başka bir hesap tarafından kullanılıyor.';
       }
       toast({
         title: 'Hata',
@@ -238,22 +207,19 @@ function AdminPageContent() {
   const handleDeleteStudent = async (studentId: string, studentName: string) => {
     setIsDeleting(studentId);
     try {
-      // Note: This only deletes the Firestore record.
-      // For a full deletion, you would also need to delete the user from Firebase Auth
-      // and potentially the parent user and their record in the 'users' collection.
-      // This requires backend logic (e.g., a Cloud Function) for security.
       await deleteDoc(doc(db, 'students', studentId));
+      await deleteDoc(doc(db, 'users', studentId));
       
       toast({
-        title: 'Firestore Kaydı Silindi',
-        description: `${studentName} adlı öğrencinin veritabanı kaydı başarıyla silindi. Lütfen Firebase Authentication'dan da öğrenci ve veli kullanıcılarını manuel olarak silmeyi unutmayın.`,
+        title: 'Öğrenci Silindi',
+        description: `${studentName} adlı öğrencinin tüm verileri başarıyla silindi. Lütfen Firebase Authentication'dan da kullanıcıyı manuel olarak silmeyi unutmayın.`,
       });
       fetchStudents(); 
     } catch (error) {
       console.error('Öğrenci silinirken hata:', error);
       toast({
         title: 'Hata',
-        description: 'Öğrenci veritabanından silinirken bir sorun oluştu. Güvenlik kurallarınızı kontrol edin.',
+        description: 'Öğrenci silinirken bir sorun oluştu.',
         variant: 'destructive',
       });
     } finally {
@@ -346,7 +312,7 @@ function AdminPageContent() {
               <UserPlus /> Yeni Öğrenci Ekle
             </CardTitle>
             <CardDescription>
-              Sisteme yeni bir öğrenci ve ilişkili veli hesabı kaydedin.
+              Sisteme yeni bir öğrenci hesabı kaydedin.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -355,9 +321,7 @@ function AdminPageContent() {
                 onSubmit={studentForm.handleSubmit(onStudentSubmit)}
                 className="space-y-6"
               >
-                <div className='grid md:grid-cols-2 gap-6'>
-                  <div className='space-y-4'>
-                    <h3 className='text-lg font-medium'>Öğrenci Bilgileri</h3>
+                <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-6'>
                     <FormField control={studentForm.control} name="name" render={({ field }) => (
                       <FormItem>
                         <FormLabel>İsim Soyisim</FormLabel>
@@ -386,24 +350,6 @@ function AdminPageContent() {
                         <FormMessage />
                       </FormItem>
                     )}/>
-                  </div>
-                  <div className='space-y-4'>
-                    <h3 className='text-lg font-medium'>Veli Bilgileri</h3>
-                     <FormField control={studentForm.control} name="parentEmail" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Veli E-posta Adresi</FormLabel>
-                        <FormControl><Input placeholder="veli@eposta.com" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}/>
-                    <FormField control={studentForm.control} name="parentPassword" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Veli Başlangıç Şifresi</FormLabel>
-                        <FormControl><Input type="password" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}/>
-                  </div>
                 </div>
                 
                 <Button
@@ -415,7 +361,7 @@ function AdminPageContent() {
                     'Ekleniyor...'
                   ) : (
                     <>
-                      <UserPlus className="mr-2 h-4 w-4" /> Öğrenci ve Veliyi Ekle
+                      <UserPlus className="mr-2 h-4 w-4" /> Öğrenciyi Ekle
                     </>
                   )}
                 </Button>
@@ -443,7 +389,7 @@ function AdminPageContent() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>İsim Soyisim</TableHead>
-                    <TableHead>Veli E-postası</TableHead>
+                    <TableHead>E-posta</TableHead>
                     <TableHead>Sınıf</TableHead>
                     <TableHead className="text-right">
                       Toplam Çözülen
@@ -481,7 +427,7 @@ function AdminPageContent() {
                             {student.name}
                           </TableCell>
                           <TableCell>
-                            {student.parentEmail || student.email}
+                            {student.email}
                           </TableCell>
                            <TableCell>
                             {student.className || '-'}
@@ -559,3 +505,5 @@ export default function AdminPage() {
         </AppLayout>
     )
 }
+
+    

@@ -1,7 +1,4 @@
 
-
-
-
 export interface Assignment {
   id: string;
   driveLink: string; 
@@ -66,8 +63,7 @@ export interface AchievementDefinition {
 export interface AppUser {
     uid: string;
     email: string;
-    role: 'admin' | 'student' | 'parent';
-    studentId?: string; // only for parents
+    role: 'admin' | 'student';
 }
 
 
@@ -83,7 +79,6 @@ export interface Student {
   weeklyPlan?: WeeklyPlanItem[];
   isPlanNew?: boolean;
   unlockedAchievements?: string[];
-  // Veli bilgileri
-  parentId?: string;
-  parentEmail?: string;
 }
+
+    

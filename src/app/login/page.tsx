@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -28,7 +29,7 @@ const formSchema = z.object({
 
 export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, user, loading } = useAuth();
+  const { login, user, loading, isAdmin } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   
@@ -38,11 +39,15 @@ export default function LoginPage() {
     });
   
   useEffect(() => {
-    // If user is already logged in, redirect them.
-    if (!loading && user) {
-      router.push('/');
+    if (loading) return;
+    if (user) {
+        if (isAdmin) {
+            router.push('/admin');
+        } else {
+            router.push('/');
+        }
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, isAdmin]);
 
 
   const handleLogin = async (values: z.infer<typeof formSchema>) => {
@@ -53,7 +58,6 @@ export default function LoginPage() {
         title: 'Başarılı!',
         description: 'Başarıyla giriş yaptınız. Yönlendiriliyorsunuz...',
       });
-      // The useEffect hook will handle the redirection.
     } catch (error: any) {
       console.error(`Giriş hatası:`, error);
       
@@ -72,7 +76,6 @@ export default function LoginPage() {
     }
   };
   
-  // Don't render the form if we are still checking auth state or if user exists
   if (loading || user) {
      return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
@@ -113,3 +116,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    

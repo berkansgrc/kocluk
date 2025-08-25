@@ -17,17 +17,16 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, User } from 'lucide-react';
+import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library } from 'lucide-react';
 import { Button } from './ui/button';
-import { AuthProvider, useAuth, protectedRoutes, adminRoutes, parentRoutes } from '@/hooks/use-auth';
+import { useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 
 const navItems = [
-  { href: '/', label: 'Anasayfa', icon: LayoutDashboard, adminOnly: false, parentHidden: true },
-  { href: '/reports', label: 'Raporlarım', icon: BarChart3, adminOnly: false, parentHidden: true },
-  { href: '/achievements', label: 'Başarımlarım', icon: Award, adminOnly: false, parentHidden: true },
-  { href: '/resources', label: 'Kaynaklar', icon: BookOpen, adminOnly: false, parentHidden: true },
-  { href: '/parent/dashboard', label: 'Veli Paneli', icon: User, parentOnly: true },
+  { href: '/', label: 'Anasayfa', icon: LayoutDashboard, adminOnly: false },
+  { href: '/reports', label: 'Raporlarım', icon: BarChart3, adminOnly: false },
+  { href: '/achievements', label: 'Başarımlarım', icon: Award, adminOnly: false },
+  { href: '/resources', label: 'Kaynaklar', icon: BookOpen, adminOnly: false },
   { href: '/admin', label: 'Admin Paneli', icon: Shield, adminOnly: true },
   { href: '/admin/library', label: 'Kütüphane', icon: Library, adminOnly: true },
 ];
@@ -36,7 +35,7 @@ const navItems = [
 function LayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout, isAdmin, isParent, loading } = useAuth();
+  const { user, logout, isAdmin, loading } = useAuth();
   const { toast } = useToast();
 
    useEffect(() => {
@@ -45,48 +44,32 @@ function LayoutContent({ children }: { children: ReactNode }) {
     }
 
     const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route)) || 
-                           adminRoutes.some(route => pathname.startsWith(route)) ||
-                           parentRoutes.some(route => pathname.startsWith(route));
-
+                           adminRoutes.some(route => pathname.startsWith(route));
+    
     if (!user && isProtectedRoute) {
       router.push('/login');
       return;
     }
     
     const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
-    const isParentRoute = parentRoutes.some(route => pathname.startsWith(route));
 
-    if (user) {
-        if (!isAdmin && isAdminRoute) {
-            toast({
-                title: 'Erişim Engellendi',
-                description: 'Admin paneline erişim yetkiniz yok.',
-                variant: 'destructive',
-            });
-            router.push('/');
-        } else if (!isParent && isParentRoute) {
-             toast({
-                title: 'Erişim Engellendi',
-                description: 'Veli paneline erişim yetkiniz yok.',
-                variant: 'destructive',
-            });
-            router.push('/');
-        } else if (isParent && !isParentRoute && !pathname.startsWith('/login')) {
-             router.push('/parent/dashboard');
-        }
+    if (user && !isAdmin && isAdminRoute) {
+        toast({
+            title: 'Erişim Engellendi',
+            description: 'Admin paneline erişim yetkiniz yok.',
+            variant: 'destructive',
+        });
+        router.push('/');
     }
+  }, [user, isAdmin, loading, pathname, router, toast]);
 
-
-  }, [user, isAdmin, isParent, loading, pathname, router, toast]);
-
-  if (loading) {
+  if (loading || !user) {
     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
   
   const visibleNavItems = navItems.filter(item => {
-    if (isAdmin) return item.parentOnly !== true;
-    if (isParent) return item.parentOnly === true;
-    return !item.adminOnly && !item.parentOnly;
+    if (isAdmin) return true;
+    return !item.adminOnly;
   });
 
   return (
@@ -151,8 +134,8 @@ function LayoutContent({ children }: { children: ReactNode }) {
 
 export function AppLayout({ children }: { children: ReactNode }) {
  return (
-  <AuthProvider>
     <LayoutContent>{children}</LayoutContent>
-  </AuthProvider>
  )
 }
+
+    

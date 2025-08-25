@@ -24,24 +24,11 @@ import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/app-layout';
 
 
-export default function DashboardPage() {
-  const { user, loading: authLoading, isAdmin, isParent } from useAuth();
+function PageContent() {
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [studentData, setStudentData] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  // Perform redirection in useEffect to avoid state updates during render
-  useEffect(() => {
-    if (authLoading) {
-      return; // Wait until auth state is determined
-    }
-    if (isAdmin) {
-      router.push('/admin');
-    } else if (isParent) {
-      router.push('/parent/dashboard');
-    }
-  }, [isAdmin, isParent, authLoading, router]);
 
   const checkAndAwardAchievements = useCallback(async (student: Student) => {
     if (!user) return;
@@ -83,7 +70,7 @@ export default function DashboardPage() {
   }, [user, toast]);
 
   const fetchStudentData = useCallback(async () => {
-    if (!user || isAdmin || isParent) {
+    if (!user) {
       setLoading(false);
       return;
     }
@@ -118,7 +105,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin, isParent, toast, checkAndAwardAchievements]);
+  }, [user, toast, checkAndAwardAchievements]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -162,8 +149,7 @@ export default function DashboardPage() {
     }
   };
 
-  const PageContent = () => {
-    if (loading || authLoading || isAdmin || isParent) {
+    if (loading || authLoading) {
       return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
           <div>
@@ -298,6 +284,28 @@ export default function DashboardPage() {
     }
   
     return <div className="p-8">Yükleniyor veya kullanıcı verisi bulunamadı...</div>;
+}
+
+
+export default function DashboardPage() {
+  const { loading, user, isAdmin } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) {
+      return; 
+    }
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    if (isAdmin) {
+      router.push('/admin');
+    }
+  }, [user, loading, isAdmin, router]);
+
+  if (loading || !user || isAdmin) {
+    return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
 
   return (
@@ -306,3 +314,5 @@ export default function DashboardPage() {
     </AppLayout>
   )
 }
+
+    
