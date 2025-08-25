@@ -17,7 +17,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock } from 'lucide-react';
+import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +28,7 @@ const navItems = [
   { href: '/achievements', label: 'Başarımlarım', icon: Award, adminOnly: false },
   { href: '/resources', label: 'Kaynaklar', icon: BookOpen, adminOnly: false },
   { href: '/zaman-yonetimi', label: 'Zaman Yönetimi', icon: Clock, adminOnly: false },
+  { href: '/deneme-analizi', label: 'Deneme Analizi', icon: ClipboardPen, adminOnly: false },
   { href: '/admin', label: 'Admin Paneli', icon: Shield, adminOnly: true },
   { href: '/admin/library', label: 'Kütüphane', icon: Library, adminOnly: true },
 ];
@@ -43,17 +44,18 @@ function LayoutContent({ children }: { children: ReactNode }) {
     if (loading) {
       return; 
     }
-
+    
+    // Redirect to login if not authenticated and trying to access a protected route.
     const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route)) || 
                            adminRoutes.some(route => pathname.startsWith(route));
-    
+
     if (!user && isProtectedRoute) {
       router.push('/login');
       return;
     }
     
+    // Redirect to home if trying to access an admin route without admin privileges.
     const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
-
     if (user && !isAdmin && isAdminRoute) {
         toast({
             title: 'Erişim Engellendi',
@@ -64,8 +66,17 @@ function LayoutContent({ children }: { children: ReactNode }) {
     }
   }, [user, isAdmin, loading, pathname, router, toast]);
 
-  if (loading || !user) {
+  if (loading) {
     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
+  }
+
+  // If we are on the login page, don't render the app layout
+  if (pathname === '/login') {
+    return <>{children}</>;
+  }
+  
+  if (!user) {
+    return <div className="flex h-screen w-screen items-center justify-center">Yönlendiriliyor...</div>;
   }
   
   const visibleNavItems = navItems.filter(item => {

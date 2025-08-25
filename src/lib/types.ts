@@ -45,14 +45,6 @@ export interface WeeklyPlanItem {
     reason: string;
 }
 
-export interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  icon: React.ElementType;
-  isUnlocked: (student: Student, allAchievements: AchievementDefinition[]) => boolean;
-}
-
 export interface AchievementDefinition {
   id: string;
   name: string;
@@ -81,4 +73,22 @@ export interface Student {
   unlockedAchievements?: string[];
 }
 
-    
+export interface ExamTopicResult {
+  topic: string;
+  correct: number;
+  incorrect: number;
+  empty: number;
+  net: number;
+  successRate: number;
+}
+
+export interface ExamAnalysis {
+  overallSuccessRate: number;
+  overallNet: number;
+  strengths: string[];
+  weaknesses: {
+    topic: string;
+    suggestion: string;
+  }[];
+  generalFeedback: string;
+}
