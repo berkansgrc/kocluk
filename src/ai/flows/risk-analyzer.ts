@@ -30,7 +30,7 @@ export type RiskAnalyzerInput = z.infer<typeof RiskAnalyzerInputSchema>;
 
 const RiskAnalyzerOutputSchema = z.object({
   risks: z.array(z.object({
-    id: z.string().describe("A unique identifier for the risk type (e.g., 'ACCURACY_DROP', 'GOAL_MISS_RISK', 'INCONSISTENT_STUDY')."),
+    id: z.string().describe("A unique identifier for the risk type (e.g., 'ACCURACY_DROP:Matematik', 'GOAL_MISS_RISK'). It must be unique for each risk identified."),
     severity: z.enum(['warning', 'critical']).describe("The severity of the risk."),
     description: z.string().describe("A concise, helpful, and encouraging description of the risk in Turkish, explaining what the risk is and what the student can do about it."),
   })).describe("A list of identified potential risks for the student."),
@@ -84,10 +84,12 @@ const prompt = ai.definePrompt({
 
   Analyze the data and identify risks based on the following criteria. For each identified risk, provide a severity ('warning' or 'critical') and a concise, encouraging description in Turkish.
 
-  1.  **GOAL_MISS_RISK (Hedefi Kaçırma Riski):** Check if the student is on track to meet their weekly goal. If the week is more than halfway through and they have completed less than 40% of their goal, this is a 'warning'. If they have completed less than 20%, it's 'critical'.
-  2.  **ACCURACY_DROP (Başarı Düşüşü):** Identify any specific subject or topic where the accuracy (correct/solved) is consistently below 60%. This is a 'warning'. If it's below 40%, it's 'critical'.
-  3.  **INEFFICIENT_STUDY (Verimsiz Çalışma):** Find topics where the student spent a lot of time (e.g., more than 90 minutes total) but their accuracy is still low (e.g., below 65%). This is a 'warning'.
-  4.  **INCONSISTENT_STUDY (Düzensiz Çalışma):** If there are no study sessions recorded in the last 3-4 days, identify this as a 'warning' to encourage consistency.
+  **IMPORTANT**: The 'id' for each risk MUST be unique. If a risk type applies to a specific subject or topic, append the subject/topic name to the id to ensure uniqueness (e.g., 'ACCURACY_DROP:Matematik', 'INEFFICIENT_STUDY:Fizik-Kaldırma Kuvveti').
+
+  1.  **GOAL_MISS_RISK (Hedefi Kaçırma Riski):** Check if the student is on track to meet their weekly goal. If the week is more than halfway through and they have completed less than 40% of their goal, this is a 'warning'. If they have completed less than 20%, it's 'critical'. The ID for this should be 'GOAL_MISS_RISK'.
+  2.  **ACCURACY_DROP (Başarı Düşüşü):** Identify any specific subject or topic where the accuracy (correct/solved) is consistently below 60%. This is a 'warning'. If it's below 40%, it's 'critical'. Create a separate risk for EACH subject/topic that meets this condition. The ID must be unique (e.g., 'ACCURACY_DROP:Matematik').
+  3.  **INEFFICIENT_STUDY (Verimsiz Çalışma):** Find topics where the student spent a lot of time (e.g., more than 90 minutes total) but their accuracy is still low (e.g., below 65%). This is a 'warning'. Create a separate risk for EACH topic. The ID must be unique (e.g., 'INEFFICIENT_STUDY:Tarih-Kurtuluş Savaşı').
+  4.  **INCONSISTENT_STUDY (Düzensiz Çalışma):** If there are no study sessions recorded in the last 3-4 days, identify this as a 'warning' to encourage consistency. The ID for this should be 'INCONSISTENT_STUDY'.
 
   Do not generate a risk if the conditions are not met. The output should be a list of identified risks in the specified JSON format. If there are no risks, return an empty list.`,
 });
