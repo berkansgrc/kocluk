@@ -29,7 +29,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const protectedRoutes = ['/', '/reports', '/resources', '/achievements'];
+export const protectedRoutes = ['/', '/reports', '/resources', '/achievements', '/zaman-yonetimi'];
 export const adminRoutes = ['/admin', '/admin/student', '/admin/library'];
 
 
@@ -94,5 +94,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-    
