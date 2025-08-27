@@ -1,47 +1,55 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check for admin role
-    function isAdmin() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+  
+    // Helper functions to make rules cleaner and more reusable.
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // --- contactSubmissions Collection ---
-    // Anyone can create (submit the form).
-    // Only admins can read.
-    // No one can update or delete through the client.
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserData(request.auth.uid).role == 'admin';
+    }
+
+    // Rules for contactSubmissions collection
+    // Allow anyone to create (submit the form).
+    // Allow only admins to read the submissions.
+    // Disallow update and delete for everyone.
     match /contactSubmissions/{submissionId} {
       allow create: if true;
       allow read: if isAdmin();
       allow update, delete: if false;
     }
 
-    // --- students Collection ---
-    // Students can read/write their own document.
-    // Admins can read/write any student document.
+    // Rules for students collection
+    // Allow admins to do anything.
+    // Allow students to read and update their own data.
     match /students/{studentId} {
-      allow read, update: if (request.auth != null && request.auth.uid == studentId) || isAdmin();
-      // Only admins can create or delete student records.
-      allow create, delete: if isAdmin();
+      allow read, write: if isAdmin() || isOwner(studentId);
     }
     
-    // --- users Collection ---
-    // Users can read their own user role document.
-    // Admins can read any user document.
-    // Only admins can create, update, or delete user documents.
+    // Rules for users collection
+    // Allow admins to do anything.
+    // Allow users to read their own user role document.
     match /users/{userId} {
-       allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
-       allow create, update, delete: if isAdmin();
+       allow read, write: if isAdmin();
+       allow read: if isOwner(userId);
     }
-    
-    // --- subjects Collection ---
-    // Any authenticated user can read the subjects library.
-    // Only admins can modify the library.
+
+    // Rules for subjects collection
+    // Only admins can read and write to the library.
     match /subjects/{subjectId} {
-        allow read: if request.auth != null;
-        allow write: if isAdmin();
+      allow read, write: if isAdmin();
     }
   }
 }
