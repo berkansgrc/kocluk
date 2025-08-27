@@ -2,45 +2,47 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Helper function to check if the user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if the user is the owner of a document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
     
-    // Helper function to check for admin role
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // Allow users to be created by the admin backend
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isSignedIn(); 
     }
 
     // Students can read/write their own data
+    // Admins can read all student data
     match /students/{studentId} {
-      allow read, write: if request.auth != null && (request.auth.uid == studentId || isAdmin());
-    }
-    
-    // Users collection to manage roles
-    match /users/{userId} {
-      // Admins can read any user doc. Users can only read their own.
-      allow get: if request.auth != null && (isAdmin() || request.auth.uid == userId);
-      // Admins can create/update user roles
-      allow write: if isAdmin();
+      allow read, update, delete: if isOwner(studentId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Subjects collection is readable by all authenticated users, but writable only by admins
-    match /subjects/{subjectId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
+    // Students can only read and create their own exam results
+    // Admins can read all results
+    match /examResults/{docId} {
+      allow get: if isSignedIn() && (isOwner(resource.data.userId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow list: if isSignedIn() && (request.query.where.size() == 1 && request.query.where[0].field == "userId" && request.query.where[0].value == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow create: if isSignedIn() && isOwner(request.resource.data.userId);
     }
     
-    // ExamResults collection rules
-    match /examResults/{resultId} {
-      // Allow a user to create a result if they are authenticated.
-      allow create: if request.auth != null;
-      
-      // Allow a user to read a specific result document if they are an admin or if the document's userId matches their own.
-      allow get: if request.auth != null && (isAdmin() || request.auth.uid == resource.data.userId);
-      
-      // Allow a user to list (query) results if they are an admin, OR if they are querying for their own documents.
-      allow list: if request.auth != null && (isAdmin() || request.query.where.get('userId', '') == request.auth.uid);
-      
-      // Prevent updates and deletes for now to maintain data integrity.
-      allow update, delete: if false;
+    // All authenticated users can read the list of subjects and topics
+    match /subjects/{subjectId} {
+       allow read: if isSignedIn();
+       allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
