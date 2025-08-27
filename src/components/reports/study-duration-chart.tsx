@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell, Legend } from 'recharts';
@@ -57,6 +58,7 @@ export default function StudyDurationChart({ studySessions }: StudyDurationChart
               cursor={{ fill: 'hsl(var(--muted))' }}
               contentStyle={{
                 backgroundColor: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
                 borderColor: 'hsl(var(--border))',
                 borderRadius: 'var(--radius)',
               }}
