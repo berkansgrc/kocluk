@@ -20,8 +20,9 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Target, ArrowDown, NotebookPen, BrainCircuit, BarChart3 } from 'lucide-react';
+import { Target, ArrowRight, NotebookPen, BrainCircuit, BarChart3 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import Image from 'next/image';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Lütfen geçerli bir e-posta adresi girin.' }),
@@ -99,23 +100,39 @@ export default function LoginPage() {
   return (
     <div className="w-full bg-background">
       {/* Hero Section */}
-      <section className="relative flex h-screen min-h-[600px] w-full flex-col items-center justify-center bg-gradient-to-br from-background via-secondary/50 to-background">
-         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,hsl(var(--primary)/0.1),transparent_50%)]"></div>
-         <div className="container relative z-10 mx-auto flex flex-col items-center justify-center px-4 text-center">
-             <div className="flex items-center gap-2 mb-4">
-                <Target className="w-10 h-10 text-primary" />
-                <h1 className='text-3xl font-bold font-heading'>Berkan Hoca</h1>
-             </div>
-             <h2 className="text-4xl font-extrabold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl font-heading">
-                Yapay Zeka ile Matematik Başarını Garantile
-             </h2>
-             <p className="mx-auto mt-4 max-w-[700px] text-muted-foreground md:text-xl">
-               Kişiselleştirilmiş çalışma planları, detaylı analizler ve yapay zeka destekli geri bildirimlerle potansiyelini en üst seviyeye çıkar.
-             </p>
-             <Button size="lg" className="mt-8" onClick={scrollToLogin}>
-                Hemen Başla <ArrowDown className="ml-2 h-5 w-5 animate-bounce" />
-             </Button>
-         </div>
+       <section className="relative w-full overflow-hidden bg-background">
+        <div className="container mx-auto grid min-h-screen grid-cols-1 items-center gap-12 px-4 md:grid-cols-2 lg:gap-20">
+          <div className="relative z-10 flex flex-col items-start text-left">
+             <div className="mb-4 flex items-center gap-3">
+              <Target className="h-8 w-8 text-primary" />
+              <h1 className="text-2xl font-bold font-heading">Berkan Hoca</h1>
+            </div>
+            <h2 className="text-4xl font-extrabold tracking-tighter sm:text-5xl md:text-6xl font-heading">
+              Yapay Zeka ile <span className="text-primary">Matematik</span> Başarını Garantile
+            </h2>
+            <p className="mt-6 max-w-lg text-lg text-muted-foreground">
+              Kişiselleştirilmiş çalışma planları, detaylı analizler ve yapay zeka destekli geri bildirimlerle potansiyelini en üst seviyeye çıkar.
+            </p>
+            <Button size="lg" className="mt-8 group" onClick={scrollToLogin}>
+              Hemen Başla
+              <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+            </Button>
+          </div>
+           <div className="relative hidden h-full w-full items-center justify-center md:flex">
+            <div className="absolute inset-0 z-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+            <div className="absolute right-0 top-1/2 h-full w-full max-w-2xl -translate-y-1/2">
+                <div className="absolute inset-y-0 right-0 z-0 h-full w-full rounded-full bg-primary/5 blur-[80px]"></div>
+            </div>
+            <Image 
+                src="https://picsum.photos/800/800"
+                width={800}
+                height={800}
+                alt="AI Learning Platform"
+                data-ai-hint="abstract geometric"
+                className="relative z-10 h-auto w-full max-w-lg rounded-2xl object-cover opacity-90 shadow-2xl shadow-primary/10"
+            />
+          </div>
+        </div>
       </section>
 
       {/* Features Section */}
@@ -205,3 +222,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
