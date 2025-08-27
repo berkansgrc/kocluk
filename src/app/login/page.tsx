@@ -39,7 +39,7 @@ export default function LoginPage() {
   const [animationData, setAnimationData] = useState(null);
 
   useEffect(() => {
-    // Using the direct JSON version of the animation to avoid parsing errors.
+    // This is a direct link to a raw JSON file, which should prevent parsing errors.
     fetch('https://lottie.host/e3988a6c-6744-4809-9069-108253161453/Fp83oYyBwd.json')
       .then(response => response.json())
       .then(data => setAnimationData(data))
