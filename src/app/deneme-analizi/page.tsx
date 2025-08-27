@@ -221,27 +221,29 @@ function DenemeAnaliziContent() {
                     Yanlışlarının veya boşlarının temel nedenini seçerek en zayıf noktalarını keşfet. Bu, sana özel raporlar oluşturmamıza yardımcı olacak.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
-                    {mistakeEntries.map((entry, index) => (
-                        <div key={index} className="p-4 border rounded-lg">
-                            <p className="font-semibold mb-2">{entry.topic}</p>
-                            <p className="text-sm text-muted-foreground mb-3">Bu konudaki hatanın nedeni neydi?</p>
-                             <RadioGroup
-                                onValueChange={(value) => handleMistakeCategoryChange(index, value as ErrorCategory)}
-                                className="gap-2"
-                            >
-                                {Object.entries(ERROR_CATEGORIES).map(([key, value]) => (
-                                     <FormItem key={key} className="flex items-center space-x-3 space-y-0">
-                                        <FormControl>
-                                            <RadioGroupItem value={key} />
-                                        </FormControl>
-                                        <FormLabel className="font-normal">{value}</FormLabel>
-                                    </FormItem>
-                                ))}
-                            </RadioGroup>
-                        </div>
-                    ))}
-                </div>
+                 <Form {...form}>
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
+                        {mistakeEntries.map((entry, index) => (
+                            <div key={index} className="p-4 border rounded-lg">
+                                <p className="font-semibold mb-2">{entry.topic}</p>
+                                <p className="text-sm text-muted-foreground mb-3">Bu konudaki hatanın nedeni neydi?</p>
+                                <RadioGroup
+                                    onValueChange={(value) => handleMistakeCategoryChange(index, value as ErrorCategory)}
+                                    className="gap-2"
+                                >
+                                    {Object.entries(ERROR_CATEGORIES).map(([key, value]) => (
+                                        <FormItem key={key} className="flex items-center space-x-3 space-y-0">
+                                            <FormControl>
+                                                <RadioGroupItem value={key} />
+                                            </FormControl>
+                                            <FormLabel className="font-normal">{value}</FormLabel>
+                                        </FormItem>
+                                    ))}
+                                </RadioGroup>
+                            </div>
+                        ))}
+                    </div>
+                </Form>
                 <DialogFooter>
                    <Button onClick={handleFinishMistakeAnalysis} disabled={mistakeEntries.some(e => e.category === null)}>
                       Analizi Bitir ve Kaydet
@@ -251,7 +253,7 @@ function DenemeAnaliziContent() {
             </Dialog>
 
             <div>
-                <h1 className="text-3xl font-bold tracking-tight font-heading">Deneme Analizi</h1>
+                <h1 className="text-3xl font-bold tracking-tight font-headline">Deneme Analizi</h1>
                 <p className="text-muted-foreground">Deneme sınavı sonuçlarını konu bazında girerek detaylı analiz ve kişiselleştirilmiş geri bildirimler al.</p>
             </div>
             <Separator />
