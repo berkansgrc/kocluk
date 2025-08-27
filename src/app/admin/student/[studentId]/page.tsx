@@ -1040,15 +1040,9 @@ function StudentDetailPageContent() {
             </div>
         </div>
         <div className="grid gap-6 mt-6">
-          <Card className='report-card'>
-            <CardHeader>
-              <CardTitle>Konu Tekrarı Analizi</CardTitle>
-              <CardDescription>Öğrencinin konu tekrarlarına harcadığı sürenin dağılımı.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TopicStudyChart studySessions={filteredSessions.filter(s => s.type === 'topic')} />
-            </CardContent>
-          </Card>
+          <div className="report-card">
+            <TopicStudyChart studySessions={filteredSessions.filter(s => s.type === 'topic')} />
+          </div>
           <Card className='report-card'>
             <CardHeader>
               <CardTitle>Ders Performans Trendi</CardTitle>
