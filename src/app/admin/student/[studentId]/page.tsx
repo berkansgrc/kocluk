@@ -67,6 +67,7 @@ import TopicStudyChart from '@/components/reports/topic-study-chart';
 import EventCalendar from '@/components/dashboard/event-calendar';
 
 const dayOrder = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+const GRADE_LEVELS = ["5", "6", "7", "8", "9", "10", "11", "12", "YKS"];
 
 const assignmentFormSchema = z.object({
   title: z.string().min(3, { message: 'Ödev başlığı en az 3 karakter olmalıdır.' }),
@@ -86,6 +87,7 @@ const settingsFormSchema = z.object({
 });
 
 const planTaskFormSchema = z.object({
+  gradeLevel: z.string().min(1, "Sınıf seviyesi seçmek zorunludur."),
   subjectId: z.string().min(1, "Ders seçmek zorunludur."),
   topicId: z.string().min(1, "Konu seçmek zorunludur."),
   goal: z.string().min(3, "Hedef en az 3 karakter olmalıdır."),
@@ -132,11 +134,19 @@ function StudentDetailPageContent() {
 
   const planTaskForm = useForm<z.infer<typeof planTaskFormSchema>>({
       resolver: zodResolver(planTaskFormSchema),
-      defaultValues: { subjectId: '', topicId: '', goal: '' },
+      defaultValues: { gradeLevel: '', subjectId: '', topicId: '', goal: '' },
   });
   
+  const selectedGradeLevel = planTaskForm.watch('gradeLevel');
   const selectedSubjectId = planTaskForm.watch('subjectId');
+
+  const filteredSubjectsForPlan = useMemo(() => subjects.filter(s => s.gradeLevel === selectedGradeLevel), [subjects, selectedGradeLevel]);
   const selectedSubjectForPlan = useMemo(() => subjects.find(s => s.id === selectedSubjectId), [subjects, selectedSubjectId]);
+  
+  useEffect(() => {
+    planTaskForm.resetField('subjectId');
+    planTaskForm.resetField('topicId');
+  }, [selectedGradeLevel, planTaskForm]);
   
   useEffect(() => {
     planTaskForm.resetField('topicId');
@@ -420,7 +430,7 @@ function StudentDetailPageContent() {
         isPlanNew: true,
       });
       toast({ title: 'Başarılı!', description: `${selectedDay} gününe yeni görev eklendi.` });
-      planTaskForm.reset({ subjectId: '', topicId: '', goal: '' });
+      planTaskForm.reset({ gradeLevel: '', subjectId: '', topicId: '', goal: '' });
       setSelectedDay(null); // Close the dialog
       fetchStudentAndSubjects(); // Refresh data
     } catch (error) {
@@ -1034,21 +1044,43 @@ function StudentDetailPageContent() {
             </DialogHeader>
             <Form {...planTaskForm}>
                 <form onSubmit={planTaskForm.handleSubmit(handleAddTask)} className="space-y-4">
+                    <FormField
+                        control={planTaskForm.control}
+                        name="gradeLevel"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Sınıf Seviyesi</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Bir seviye seçin" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {GRADE_LEVELS.map(level => (
+                                    <SelectItem key={level} value={level}>{level === 'YKS' ? 'YKS' : `${level}. Sınıf`}</SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                      <FormField
                         control={planTaskForm.control}
                         name="subjectId"
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Ders</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={!selectedGradeLevel}>
                                 <FormControl>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Bir ders seçin" />
+                                    <SelectValue placeholder={!selectedGradeLevel ? "Önce seviye seçin" : "Bir ders seçin"} />
                                 </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                {subjects.map(subject => (
-                                    <SelectItem key={subject.id} value={subject.id}>{subject.name} ({subject.gradeLevel})</SelectItem>
+                                {filteredSubjectsForPlan.map(subject => (
+                                    <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
                                 ))}
                                 </SelectContent>
                             </Select>
@@ -1112,3 +1144,5 @@ export default function StudentDetailPage() {
         </AppLayout>
     )
 }
+
+    
