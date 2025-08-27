@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { AppLayout } from '@/components/app-layout';
@@ -9,18 +10,22 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import type { ExamAnalysis, Subject } from '@/lib/types';
+import type { ExamAnalysis, Subject, ExamResult, ErrorCategory } from '@/lib/types';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BrainCircuit, ClipboardPen, TrendingDown, TrendingUp } from 'lucide-react';
+import { BrainCircuit, ClipboardPen, TrendingDown, TrendingUp, HelpCircle } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { useAuth } from '@/hooks/use-auth';
 import { analyzeExam } from '@/ai/flows/exam-analyzer';
 import { Badge } from '@/components/ui/badge';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { ERROR_CATEGORIES } from '@/lib/types';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useRouter } from 'next/navigation';
 
 const GRADE_LEVELS = ["5", "6", "7", "8", "9", "10", "11", "12", "YKS"];
 
@@ -38,13 +43,22 @@ const examFormSchema = z.object({
 
 type ExamFormValues = z.infer<typeof examFormSchema>;
 
+type MistakeEntry = {
+    topic: string;
+    category: ErrorCategory | null;
+};
+
 function DenemeAnaliziContent() {
     const { user } = useAuth();
     const { toast } = useToast();
+    const router = useRouter();
     const [analysis, setAnalysis] = useState<ExamAnalysis | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [loadingSubjects, setLoadingSubjects] = useState(true);
+    const [isMistakeModalOpen, setIsMistakeModalOpen] = useState(false);
+    const [mistakeEntries, setMistakeEntries] = useState<MistakeEntry[]>([]);
+
 
     const form = useForm<ExamFormValues>({
         resolver: zodResolver(examFormSchema),
@@ -118,12 +132,26 @@ function DenemeAnaliziContent() {
                 studentName: user.displayName || 'Öğrenci',
                 examName: values.examName,
                 subjectName: selectedSubject.name,
-                topicResults: values.topicResults,
+                topicResults: values.topicResults.map(t => ({...t, net: 0, successRate: 0})),
             };
             
             const result = await analyzeExam(analysisInput);
             setAnalysis(result);
-             toast({ title: 'Analiz Tamamlandı!', description: 'Sonuçları aşağıda görebilirsiniz.' });
+            toast({ title: 'Analiz Tamamlandı!', description: 'Sonuçları aşağıda görebilirsiniz. Şimdi hatalarınızı kategorize edebilirsiniz.' });
+
+            // Prepare for mistake analysis
+            const topicsWithMistakes = values.topicResults
+                .filter(t => t.incorrect > 0 || t.empty > 0)
+                .map(t => ({ topic: t.topic, category: null } as MistakeEntry));
+            
+            setMistakeEntries(topicsWithMistakes);
+
+            if(topicsWithMistakes.length > 0) {
+              setTimeout(() => setIsMistakeModalOpen(true), 500); // Open modal after a short delay
+            } else {
+              await saveResults(result, values, {});
+            }
+
         } catch (error) {
             console.error("Exam analysis error:", error);
             toast({ title: 'Analiz Hatası', description: 'Sonuçlar analiz edilirken bir sorun oluştu.', variant: 'destructive' });
@@ -132,10 +160,98 @@ function DenemeAnaliziContent() {
         }
     }
 
+    const handleMistakeCategoryChange = (index: number, category: ErrorCategory) => {
+        setMistakeEntries(prev => {
+            const newEntries = [...prev];
+            newEntries[index].category = category;
+            return newEntries;
+        });
+    };
+    
+    const saveResults = async (currentAnalysis: ExamAnalysis, formValues: ExamFormValues, categorizedMistakes: Record<ErrorCategory, number>) => {
+        if (!user || !selectedSubject || !currentAnalysis) return;
+
+        const finalResult: ExamResult = {
+            ...currentAnalysis,
+            userId: user.uid,
+            examName: formValues.examName,
+            subjectName: selectedSubject.name,
+            gradeLevel: formValues.gradeLevel,
+            analyzedAt: Timestamp.now(),
+            topicResults: formValues.topicResults.map(({ topic, correct, incorrect, empty }) => ({ topic, correct, incorrect, empty })),
+            errorAnalysis: categorizedMistakes,
+        };
+
+        try {
+            await addDoc(collection(db, "examResults"), finalResult);
+            toast({
+                title: "Sonuçlar Kaydedildi!",
+                description: "Hata analiz raporunuz oluşturuldu. Raporu Hata Raporu sayfasından görüntüleyebilirsiniz.",
+            });
+            router.push('/hata-raporu');
+        } catch (error) {
+            console.error("Error saving results: ", error);
+            toast({ title: "Kayıt Hatası", description: "Analiz sonuçları kaydedilirken bir hata oluştu.", variant: "destructive" });
+        }
+    };
+
+    const handleFinishMistakeAnalysis = async () => {
+        if (!analysis || !form.getValues()) return;
+
+        const categorizedMistakes = mistakeEntries.reduce((acc, entry) => {
+            if (entry.category) {
+                acc[entry.category] = (acc[entry.category] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<ErrorCategory, number>);
+        
+        await saveResults(analysis, form.getValues(), categorizedMistakes);
+
+        setIsMistakeModalOpen(false);
+    };
+
+
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+            <Dialog open={isMistakeModalOpen} onOpenChange={setIsMistakeModalOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Hatalarını Analiz Et</DialogTitle>
+                  <DialogDescription>
+                    Yanlışlarının veya boşlarının temel nedenini seçerek en zayıf noktalarını keşfet. Bu, sana özel raporlar oluşturmamıza yardımcı olacak.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
+                    {mistakeEntries.map((entry, index) => (
+                        <div key={index} className="p-4 border rounded-lg">
+                            <p className="font-semibold mb-2">{entry.topic}</p>
+                            <p className="text-sm text-muted-foreground mb-3">Bu konudaki hatanın nedeni neydi?</p>
+                             <RadioGroup
+                                onValueChange={(value) => handleMistakeCategoryChange(index, value as ErrorCategory)}
+                                className="gap-2"
+                            >
+                                {Object.entries(ERROR_CATEGORIES).map(([key, value]) => (
+                                     <FormItem key={key} className="flex items-center space-x-3 space-y-0">
+                                        <FormControl>
+                                            <RadioGroupItem value={key} />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">{value}</FormLabel>
+                                    </FormItem>
+                                ))}
+                            </RadioGroup>
+                        </div>
+                    ))}
+                </div>
+                <DialogFooter>
+                   <Button onClick={handleFinishMistakeAnalysis} disabled={mistakeEntries.some(e => e.category === null)}>
+                      Analizi Bitir ve Kaydet
+                   </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             <div>
-                <h1 className="text-3xl font-bold tracking-tight font-headline">Deneme Analizi</h1>
+                <h1 className="text-3xl font-bold tracking-tight font-heading">Deneme Analizi</h1>
                 <p className="text-muted-foreground">Deneme sınavı sonuçlarını konu bazında girerek detaylı analiz ve kişiselleştirilmiş geri bildirimler al.</p>
             </div>
             <Separator />

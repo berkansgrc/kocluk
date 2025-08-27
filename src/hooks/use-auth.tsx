@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { 
@@ -29,7 +30,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const protectedRoutes = ['/', '/reports', '/resources', '/achievements', '/zaman-yonetimi', '/deneme-analizi'];
+export const protectedRoutes = ['/', '/reports', '/resources', '/achievements', '/zaman-yonetimi', '/deneme-analizi', '/hata-raporu'];
 export const adminRoutes = ['/admin', '/admin/student', '/admin/library'];
 
 
