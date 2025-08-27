@@ -18,7 +18,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen, HelpCircle } from 'lucide-react';
+import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -32,7 +32,6 @@ const navItems = [
   { href: '/resources', label: 'Kaynaklar', icon: BookOpen, adminOnly: false },
   { href: '/zaman-yonetimi', label: 'Zaman Yönetimi', icon: Clock, adminOnly: false },
   { href: '/deneme-analizi', label: 'Deneme Analizi', icon: ClipboardPen, adminOnly: false },
-  { href: '/hata-raporu', label: 'Hata Raporu', icon: HelpCircle, adminOnly: false },
   { href: '/admin', label: 'Admin Paneli', icon: Shield, adminOnly: true },
   { href: '/admin/library', label: 'Kütüphane', icon: Library, adminOnly: true },
 ];
