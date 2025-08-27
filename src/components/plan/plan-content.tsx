@@ -5,12 +5,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { Student, WeeklyPlanItem } from '@/lib/types';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarCheck } from 'lucide-react';
+import { CalendarCheck, Check, Square } from 'lucide-react';
+import { Checkbox } from '../ui/checkbox';
 
 const dayOrder = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
@@ -58,6 +59,21 @@ export default function PlanContent() {
     }
   }, [authLoading, fetchStudentData]);
 
+  const handleToggleComplete = async (task: WeeklyPlanItem) => {
+    if (!user || !studentData) return;
+     try {
+        const updatedPlan = (studentData.weeklyPlan || []).map(p => 
+            p.id === task.id ? { ...p, isCompleted: !p.isCompleted } : p
+        );
+        const studentDocRef = doc(db, 'students', user.uid);
+        await updateDoc(studentDocRef, { weeklyPlan: updatedPlan });
+        setStudentData(prev => prev ? { ...prev, weeklyPlan: updatedPlan } : null);
+    } catch(e) {
+        console.error("Error updating task status:", e);
+        toast({ title: 'Hata', description: 'Görev durumu güncellenemedi.', variant: 'destructive' });
+    }
+  };
+
 
   if (loading || authLoading) {
     return (
@@ -80,7 +96,7 @@ export default function PlanContent() {
     );
   }
   
-  const weeklyPlan = studentData?.weeklyPlan?.sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day)) || [];
+  const weeklyPlan = studentData?.weeklyPlan || [];
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -89,7 +105,7 @@ export default function PlanContent() {
           Haftalık Planım
         </h1>
         <p className="text-muted-foreground">
-          Yapay zeka koçun tarafından senin için oluşturulan haftalık yol haritası.
+          Koçun tarafından senin için oluşturulan haftalık yol haritası.
         </p>
       </div>
       <Separator />
@@ -102,25 +118,27 @@ export default function PlanContent() {
         <CardContent>
           {weeklyPlan.length > 0 ? (
             <div className="border rounded-lg overflow-x-auto">
-              <div className="grid grid-cols-7 min-w-[800px]">
+              <div className="grid grid-cols-7 min-w-[1000px]">
                 {dayOrder.map(day => (
                   <div key={day} className="flex-1 border-r last:border-r-0">
                     <div className="p-3 font-semibold text-center bg-muted/50 border-b">{day}</div>
                     <div className="p-2 space-y-3 min-h-[50vh]">
                        {weeklyPlan.filter(item => item.day === day).map((item, index) => (
-                        item.subject === 'Dinlenme Günü' ? (
-                             <div key={index} className="p-3 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-center">
-                                <p className="font-semibold">{item.subject}</p>
-                                <p className="text-xs">{item.goal}</p>
-                            </div>
-                        ) : (
-                            <div key={index} className="p-3 rounded-lg bg-card border shadow-sm">
-                                <p className="font-bold text-primary">{item.subject}</p>
-                                <p className="text-sm font-medium mt-1">{item.topic}</p>
-                                <p className="text-xs text-muted-foreground mt-2">{item.goal}</p>
-                                {item.reason && <p className="text-xs text-amber-600 italic mt-2 pt-2 border-t">Koç Notu: {item.reason}</p>}
-                            </div>
-                        )
+                           <div key={item.id} className="p-3 rounded-lg bg-card border shadow-sm">
+                               <div className="flex items-start gap-3">
+                                   <Checkbox 
+                                        id={`plan-task-${item.id}`}
+                                        className='mt-1'
+                                        checked={item.isCompleted}
+                                        onCheckedChange={() => handleToggleComplete(item)}
+                                    />
+                                    <div className="flex-1">
+                                        <label htmlFor={`plan-task-${item.id}`} className="font-bold text-primary has-[[data-state=checked]]:line-through has-[[data-state=checked]]:text-muted-foreground">{item.subject}</label>
+                                        <p className="text-sm font-medium mt-1">{item.topic}</p>
+                                        <p className="text-xs text-muted-foreground mt-2">{item.goal}</p>
+                                    </div>
+                               </div>
+                           </div>
                        ))}
                     </div>
                   </div>
@@ -132,7 +150,7 @@ export default function PlanContent() {
                 <CalendarCheck className="w-16 h-16 mb-4" />
                 <h3 className="text-xl font-semibold text-foreground">Henüz Bir Planın Yok</h3>
                 <p className="mt-2 max-w-md">
-                    Yapay zeka destekli haftalık planın oluşturulduğunda burada görünecek. Koçunla iletişime geçebilir veya ana sayfadaki bildirimlerini kontrol edebilirsin.
+                    Koçun tarafından haftalık planın oluşturulduğunda burada görünecek.
                 </p>
           </div>
           )}

@@ -48,11 +48,12 @@ export interface Subject {
 }
 
 export interface WeeklyPlanItem {
+    id: string;
     day: string;
     subject: string;
     topic: string;
     goal: string;
-    reason: string;
+    isCompleted: boolean;
 }
 
 export interface AchievementDefinition {

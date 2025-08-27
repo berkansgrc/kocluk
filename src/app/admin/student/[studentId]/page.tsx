@@ -5,14 +5,14 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp, collection, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import type { Student, Assignment, Resource, StudySession, WeeklyPlanItem } from '@/lib/types';
+import type { Student, Assignment, Resource, StudySession, Subject, Topic, WeeklyPlanItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight, Download, Bot, CalendarDays } from 'lucide-react';
+import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight, Download, Bot, CalendarDays, PlusCircle } from 'lucide-react';
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
@@ -60,13 +60,13 @@ import {
 } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { generateWeeklyPlan } from '@/ai/flows/weekly-planner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import PerformanceTrendChart from '@/components/reports/performance-trend-chart';
 import { AppLayout } from '@/components/app-layout';
 import TopicStudyChart from '@/components/reports/topic-study-chart';
 import EventCalendar from '@/components/dashboard/event-calendar';
 
+const dayOrder = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 
 const assignmentFormSchema = z.object({
   title: z.string().min(3, { message: 'Ödev başlığı en az 3 karakter olmalıdır.' }),
@@ -85,16 +85,11 @@ const settingsFormSchema = z.object({
   className: z.string().optional(),
 });
 
-const weeklyPlanFormSchema = z.object({
-  plan: z.array(z.object({
-    day: z.string().min(1, "Gün boş olamaz"),
-    subject: z.string().min(1, "Ders boş olamaz"),
-    topic: z.string().min(1, "Konu boş olamaz"),
-    goal: z.string().min(1, "Hedef boş olamaz"),
-    reason: z.string(),
-  }))
+const planTaskFormSchema = z.object({
+  subjectId: z.string().min(1, "Ders seçmek zorunludur."),
+  topicId: z.string().min(1, "Konu seçmek zorunludur."),
+  goal: z.string().min(3, "Hedef en az 3 karakter olmalıdır."),
 });
-
 
 type TimeRange = 'weekly' | 'monthly' | 'yearly' | 'all';
 
@@ -109,9 +104,8 @@ function StudentDetailPageContent() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isPlaning, setIsPlaning] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
-  const [generatedPlan, setGeneratedPlan] = useState<WeeklyPlanItem[] | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -136,28 +130,22 @@ function StudentDetailPageContent() {
     resolver: zodResolver(settingsFormSchema),
   });
 
-  const planForm = useForm<z.infer<typeof weeklyPlanFormSchema>>({
-    resolver: zodResolver(weeklyPlanFormSchema),
-    defaultValues: { plan: [] },
+  const planTaskForm = useForm<z.infer<typeof planTaskFormSchema>>({
+      resolver: zodResolver(planTaskFormSchema),
+      defaultValues: { subjectId: '', topicId: '', goal: '' },
   });
-
-  const { fields, append, remove, update } = useFieldArray({
-    control: planForm.control,
-    name: "plan"
-  });
-
+  
+  const selectedSubjectId = planTaskForm.watch('subjectId');
+  const selectedSubjectForPlan = useMemo(() => subjects.find(s => s.id === selectedSubjectId), [subjects, selectedSubjectId]);
+  
   useEffect(() => {
-    if (generatedPlan) {
-      planForm.reset({ plan: generatedPlan });
-    }
-  }, [generatedPlan, planForm]);
+    planTaskForm.resetField('topicId');
+  }, [selectedSubjectId, planTaskForm]);
 
 
   const fetchStudentAndSubjects = useCallback(async () => {
-    // No need to set loading to true here, it is handled in the effect
     if (!studentId || !user) return;
     try {
-      // Fetch student data
       const studentDocRef = doc(db, 'students', studentId);
       const studentDocSnap = await getDoc(studentDocRef);
       if (studentDocSnap.exists()) {
@@ -172,9 +160,8 @@ function StudentDetailPageContent() {
         router.push('/admin');
       }
 
-       // Fetch subjects
       const subjectsQuerySnapshot = await getDocs(collection(db, 'subjects'));
-      const subjectsList = subjectsQuerySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subject));
+      const subjectsList = subjectsQuerySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subject)).sort((a,b) => a.name.localeCompare(b.name));
       setSubjects(subjectsList);
 
     } catch (error) {
@@ -187,7 +174,6 @@ function StudentDetailPageContent() {
 
   useEffect(() => {
     setLoading(true);
-    setGeneratedPlan(null); // Reset plan on student change
     fetchStudentAndSubjects();
   }, [fetchStudentAndSubjects]);
 
@@ -198,20 +184,18 @@ function StudentDetailPageContent() {
   
     const allSessions = student.studySessions.map(s => {
       let sessionDate;
-      // Handle Firestore Timestamp
       if (s.date && typeof s.date.seconds === 'number') {
         sessionDate = fromUnixTime(s.date.seconds);
       } else {
-        // Handle string or other formats (with validation)
         const parsedDate = new Date(s.date);
         if (!isNaN(parsedDate.getTime())) {
           sessionDate = parsedDate;
         } else {
-            return { ...s, date: null }; // Mark as invalid
+            return { ...s, date: null };
         }
       }
       return { ...s, date: sessionDate };
-    }).filter(s => s.date instanceof Date && !isNaN(s.date.getTime())); // Ensure only valid dates proceed
+    }).filter(s => s.date instanceof Date && !isNaN(s.date.getTime()));
   
     if (timeRange === 'all') {
       return { filteredSessions: allSessions, dateRangeDisplay: 'Tüm Zamanlar' };
@@ -233,13 +217,11 @@ function StudentDetailPageContent() {
         end = endOfYear(currentDate);
         break;
       default:
-        // Should not happen with the check above, but as a fallback
         return { filteredSessions: allSessions, dateRangeDisplay: 'Tüm Zamanlar' };
     }
     
     const filtered = allSessions.filter(session => {
         const sessionDate = session.date;
-        // The check for valid date is now more robust
         return sessionDate && sessionDate >= start && sessionDate <= end;
     });
   
@@ -248,7 +230,7 @@ function StudentDetailPageContent() {
       display = `${format(start, 'd MMMM', { locale: tr })} - ${format(end, 'd MMMM yyyy', { locale: tr })}`;
     } else if (timeRange === 'monthly') {
       display = format(currentDate, 'MMMM yyyy', { locale: tr });
-    } else { // yearly
+    } else { 
       display = format(currentDate, 'yyyy', { locale: tr });
     }
   
@@ -292,7 +274,7 @@ function StudentDetailPageContent() {
       });
       toast({ title: 'Başarılı!', description: 'Ödev başarıyla öğrenciye atandı.' });
       assignmentForm.reset();
-      fetchStudentAndSubjects(); // Re-fetch student to update state
+      fetchStudentAndSubjects();
     } catch (error) {
        console.error("Ödev atanırken hata:", error);
        toast({ title: 'Hata', description: 'Ödev atanırken bir sorun oluştu.', variant: 'destructive' });
@@ -411,67 +393,54 @@ function StudentDetailPageContent() {
     }
   };
   
-  const handleGeneratePlan = async () => {
-    if (!student) return;
-    setIsPlaning(true);
-    toast({ title: 'Plan Oluşturuluyor...', description: 'Yapay zeka öğrencinin verilerini analiz ediyor, lütfen bekleyin.' });
-    try {
-      const plainStudySessions = (student.studySessions || []).map(s => {
-        const { date, ...rest } = s; 
-        const accuracy = s.questionsSolved > 0 ? Math.round((s.questionsCorrect / s.questionsSolved) * 100) : 0;
-        return {
-          ...rest,
-          topic: s.topic || 'Genel',
-          accuracy: accuracy,
-        };
-      });
+  const handleAddTask = async (values: z.infer<typeof planTaskFormSchema>) => {
+    if (!student || !selectedDay) return;
+    
+    const subject = subjects.find(s => s.id === values.subjectId);
+    const topic = subject?.topics.find(t => t.id === values.topicId);
 
-      const planInput = {
-        studentName: student.name,
-        studySessions: plainStudySessions,
-        subjects: subjects.map(s => s.name),
-      };
-
-      const result = await generateWeeklyPlan(planInput);
-      
-      setGeneratedPlan(result.plan);
-      toast({ title: 'Taslak Plan Oluşturuldu', description: 'Plan aşağıdadır. Düzenleyip kaydedebilir veya iptal edebilirsiniz.' });
-
-    } catch (error) {
-      console.error("Haftalık plan oluşturulurken hata:", error);
-      toast({ title: 'Hata', description: 'Plan oluşturulurken bir sorun oluştu.', variant: 'destructive' });
-    } finally {
-      setIsPlaning(false);
+    if (!subject || !topic) {
+        toast({ title: 'Hata', description: 'Geçersiz ders veya konu seçimi.', variant: 'destructive' });
+        return;
     }
-  };
-  
-  const handleSavePlan = async (values: z.infer<typeof weeklyPlanFormSchema>) => {
-    if (!student) return;
+
+    const newTask: WeeklyPlanItem = {
+      id: new Date().toISOString(),
+      day: selectedDay,
+      subject: subject.name,
+      topic: topic.name,
+      goal: values.goal,
+      isCompleted: false,
+    };
+    
     try {
       const studentDocRef = doc(db, 'students', student.id);
       await updateDoc(studentDocRef, { 
-        weeklyPlan: values.plan,
+        weeklyPlan: arrayUnion(newTask),
         isPlanNew: true,
       });
-      toast({ title: 'Başarılı!', description: 'Haftalık plan kaydedildi ve öğrenciye atandı.' });
-      setGeneratedPlan(null); // Clear the editing form
+      toast({ title: 'Başarılı!', description: `${selectedDay} gününe yeni görev eklendi.` });
+      planTaskForm.reset({ subjectId: '', topicId: '', goal: '' });
+      setSelectedDay(null); // Close the dialog
       fetchStudentAndSubjects(); // Refresh data
     } catch (error) {
-      console.error("Plan kaydedilirken hata:", error);
-      toast({ title: 'Hata', description: 'Plan kaydedilirken bir sorun oluştu.', variant: 'destructive' });
+      console.error("Plan görevi eklenirken hata:", error);
+      toast({ title: 'Hata', description: 'Görev eklenirken bir sorun oluştu.', variant: 'destructive' });
     }
   };
 
-  const handleDeletePlan = async () => {
+  const handleDeleteTask = async (task: WeeklyPlanItem) => {
     if (!student) return;
     try {
-      const studentDocRef = doc(db, 'students', student.id);
-      await updateDoc(studentDocRef, { weeklyPlan: [], isPlanNew: false });
-      toast({ title: 'Başarılı!', description: 'Haftalık plan silindi.' });
-      fetchStudentAndSubjects();
+        const studentDocRef = doc(db, 'students', student.id);
+        await updateDoc(studentDocRef, { 
+            weeklyPlan: arrayRemove(task),
+        });
+        toast({ title: 'Başarılı!', description: 'Görev başarıyla silindi.' });
+        fetchStudentAndSubjects();
     } catch (error) {
-      console.error("Plan silinirken hata:", error);
-      toast({ title: 'Hata', description: 'Plan silinirken bir sorun oluştu.', variant: 'destructive' });
+        console.error("Görev silinirken hata:", error);
+        toast({ title: 'Hata', description: 'Görev silinirken bir sorun oluştu.', variant: 'destructive' });
     }
   };
 
@@ -505,7 +474,7 @@ function StudentDetailPageContent() {
                 backgroundColor: cardBgColor,
             });
 
-            const imgData = canvas.toDataURL('image/jpeg', 0.8); // Use JPEG with compression
+            const imgData = canvas.toDataURL('image/jpeg', 0.8);
             const imgWidth = pdfWidth - margin * 2;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
@@ -515,7 +484,7 @@ function StudentDetailPageContent() {
             }
 
             pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
-            yPosition += imgHeight + 20; // Add some space between cards
+            yPosition += imgHeight + 20;
         }
         
         pdf.save(`${student.name.replace(' ', '_')}-Rapor-${dateRangeDisplay.replace(' ', '_')}.pdf`);
@@ -604,107 +573,81 @@ function StudentDetailPageContent() {
       <Separator />
 
        <div className='mt-6'>
-       <h2 className="text-2xl font-bold tracking-tight">Koçluk Araçları</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Haftalık Plan Yönetimi</h2>
         <Separator className="my-4" />
          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-           <Card>
+           <Card className='lg:col-span-2'>
             <CardHeader>
               <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
                 <span className='flex items-center gap-2'>
-                  <Bot /> Yapay Zeka Destekli Plan
+                  <CalendarDays /> Haftalık Ders Programı
                 </span>
-                {student.weeklyPlan && student.weeklyPlan.length > 0 && !generatedPlan && (
-                  <AlertDialog>
+                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm" className='mt-2 sm:mt-0'><Trash2 className='w-4 h-4 mr-2'/> Planı Sil</Button>
+                      <Button variant="destructive" size="sm" className='mt-2 sm:mt-0' disabled={!student.weeklyPlan || student.weeklyPlan.length === 0}>
+                        <Trash2 className='w-4 h-4 mr-2'/> Tüm Planı Sil
+                      </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Bu işlem geri alınamaz. Öğrencinin mevcut haftalık planı kalıcı olarak silinecektir.
+                          Bu işlem geri alınamaz. Öğrencinin mevcut haftalık planındaki tüm görevler kalıcı olarak silinecektir.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>İptal</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeletePlan}>Sil</AlertDialogAction>
+                        <AlertDialogAction onClick={async () => {
+                             if (!student) return;
+                             try {
+                                const studentDocRef = doc(db, 'students', student.id);
+                                await updateDoc(studentDocRef, { weeklyPlan: [], isPlanNew: false });
+                                toast({ title: 'Başarılı!', description: 'Haftalık plan silindi.' });
+                                fetchStudentAndSubjects();
+                              } catch (error) {
+                                console.error("Plan silinirken hata:", error);
+                                toast({ title: 'Hata', description: 'Plan silinirken bir sorun oluştu.', variant: 'destructive' });
+                              }
+                        }}>Sil</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-                )}
               </CardTitle>
               <CardDescription>
-                Öğrencinin geçmiş performansını analiz ederek ona özel bir haftalık çalışma planı oluşturun.
+                Öğrenci için haftalık görevleri yönetin. Görev eklemek için ilgili günün butonuna tıklayın.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button onClick={handleGeneratePlan} disabled={isPlaning}>
-                {isPlaning ? 'Plan Oluşturuluyor...' : 'Yeni Plan Oluştur'}
-              </Button>
-            </CardContent>
-
-            {(generatedPlan || (student.weeklyPlan && student.weeklyPlan.length > 0)) && (
-                <CardFooter className="flex-col items-start gap-4">
-                  
-                  <Form {...planForm}>
-                    <form onSubmit={planForm.handleSubmit(handleSavePlan)} className="w-full space-y-4">
-                        <h3 className='text-lg font-semibold mb-2'>{generatedPlan ? "Düzenlenebilir Taslak Plan" : "Mevcut Plan"}</h3>
-                        <div className="rounded-md border w-full overflow-x-auto">
-                          <Table>
-                              <TableHeader>
-                                  <TableRow>
-                                      <TableHead className="w-1/6">Gün</TableHead>
-                                      <TableHead className="w-1/6">Ders</TableHead>
-                                      <TableHead className="w-1/6">Konu</TableHead>
-                                      <TableHead className="w-2/6">Hedef</TableHead>
-                                      <TableHead className="w-2/6">Koç Notu</TableHead>
-                                  </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {generatedPlan ? fields.map((field, index) => (
-                                   <TableRow key={field.id}>
-                                     <TableCell><Input {...planForm.register(`plan.${index}.day`)} /></TableCell>
-                                     <TableCell><Input {...planForm.register(`plan.${index}.subject`)}/></TableCell>
-                                     <TableCell><Input {...planForm.register(`plan.${index}.topic`)} /></TableCell>
-                                     <TableCell><Input {...planForm.register(`plan.${index}.goal`)} /></TableCell>
-                                     <TableCell><Input {...planForm.register(`plan.${index}.reason`)} /></TableCell>
-                                   </TableRow>
-                                )) : student.weeklyPlan?.map((item, index) => (
-                                     <TableRow key={index}>
-                                        <TableCell className="font-medium">{item.day}</TableCell>
-                                        <TableCell>{item.subject}</TableCell>
-                                        <TableCell>{item.topic}</TableCell>
-                                        <TableCell>{item.goal}</TableCell>
-                                        <TableCell className='text-muted-foreground italic'>{item.reason}</TableCell>
-                                    </TableRow>
+                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
+                    {dayOrder.map(day => (
+                        <div key={day} className='border rounded-lg p-4 space-y-3'>
+                            <h3 className='font-semibold text-center mb-2'>{day}</h3>
+                            <ul className='space-y-2 min-h-24'>
+                                {(student.weeklyPlan || []).filter(task => task.day === day).map(task => (
+                                    <li key={task.id} className='text-xs p-2 bg-muted/50 rounded-md group relative'>
+                                        <p className='font-bold text-primary-dark'>{task.subject}</p>
+                                        <p className='font-medium'>{task.topic}</p>
+                                        <p className='text-muted-foreground italic mt-1'>{task.goal}</p>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className='h-5 w-5 absolute top-1 right-1 opacity-0 group-hover:opacity-100'
+                                            onClick={() => handleDeleteTask(task)}>
+                                            <Trash2 className='w-3 h-3 text-destructive' />
+                                        </Button>
+                                    </li>
                                 ))}
-                              </TableBody>
-                          </Table>
+                            </ul>
+                             <Dialog onOpenChange={(open) => { if (open) setSelectedDay(day); else setSelectedDay(null); }}>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm" className='w-full'><PlusCircle className='w-4 h-4 mr-2' /> Görev Ekle</Button>
+                                </DialogTrigger>
+                             </Dialog>
                         </div>
-                        {generatedPlan && (
-                           <div className='flex gap-2 justify-end'>
-                             <Button type="button" variant="ghost" onClick={() => setGeneratedPlan(null)}>Vazgeç</Button>
-                             <Button type="submit" disabled={planForm.formState.isSubmitting}>
-                                {planForm.formState.isSubmitting ? "Kaydediliyor..." : "Planı Kaydet ve Ata"}
-                             </Button>
-                           </div>
-                        )}
-                    </form>
-                  </Form>
-                </CardFooter>
-            )}
+                    ))}
+                </div>
+            </CardContent>
            </Card>
-            <div className="space-y-6">
-                <Card>
-                    <CardHeader>
-                         <CardTitle className='flex items-center gap-2'><CalendarDays /> Öğrenci Takvimi</CardTitle>
-                         <CardDescription>Öğrencinin takvimine notlar ekleyin veya mevcut planını görüntüleyin.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <EventCalendar student={student} onUpdate={fetchStudentAndSubjects} userRole='admin' />
-                    </CardContent>
-                </Card>
-            </div>
          </div>
       </div>
 
@@ -1084,6 +1027,80 @@ function StudentDetailPageContent() {
           </Card>
         </div>
       </div>
+       <Dialog open={!!selectedDay} onOpenChange={(open) => !open && setSelectedDay(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{selectedDay} Günü İçin Görev Ekle</DialogTitle>
+            </DialogHeader>
+            <Form {...planTaskForm}>
+                <form onSubmit={planTaskForm.handleSubmit(handleAddTask)} className="space-y-4">
+                     <FormField
+                        control={planTaskForm.control}
+                        name="subjectId"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Ders</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Bir ders seçin" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {subjects.map(subject => (
+                                    <SelectItem key={subject.id} value={subject.id}>{subject.name} ({subject.gradeLevel})</SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={planTaskForm.control}
+                        name="topicId"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Konu</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={!selectedSubjectForPlan}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder={!selectedSubjectForPlan ? "Önce ders seçin" : "Bir konu seçin"} />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {(selectedSubjectForPlan?.topics || []).map(topic => (
+                                    <SelectItem key={topic.id} value={topic.id}>{topic.name}</SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                      control={planTaskForm.control}
+                      name="goal"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Hedef / Açıklama</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="Örn: 20 soru çöz ve yapamadıklarını analiz et." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter>
+                        <Button type="button" variant="secondary" onClick={() => setSelectedDay(null)}>İptal</Button>
+                        <Button type="submit" disabled={planTaskForm.formState.isSubmitting}>
+                            {planTaskForm.formState.isSubmitting ? 'Ekleniyor...' : 'Görevi Ekle'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

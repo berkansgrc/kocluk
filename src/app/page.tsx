@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import type { Student, Assignment, CalendarEvent } from '@/lib/types';
+import type { Student, Assignment, CalendarEvent, WeeklyPlanItem } from '@/lib/types';
 import WelcomeHeader from '@/components/dashboard/welcome-header';
 import WeeklyProgress from '@/components/dashboard/weekly-progress';
 import StudySessionForm from '@/components/dashboard/study-session-form';
@@ -20,11 +20,73 @@ import DailyStreak from '@/components/dashboard/daily-streak';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { achievementChecks, allAchievements } from '@/lib/achievements';
-import { Award } from 'lucide-react';
+import { Award, Check, ClipboardCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/app-layout';
 import EventCalendar from '@/components/dashboard/event-calendar';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 
+
+function TodaysPlan({ plan, onToggle, studentId }: { plan: WeeklyPlanItem[], onToggle: () => void, studentId: string }) {
+    
+    const { toast } = useToast();
+
+    const handleToggleComplete = async (task: WeeklyPlanItem) => {
+        try {
+            const studentDocRef = doc(db, 'students', studentId);
+            const studentDoc = await getDoc(studentDocRef);
+            if(studentDoc.exists()) {
+                const studentData = studentDoc.data() as Student;
+                const updatedPlan = (studentData.weeklyPlan || []).map(p => 
+                    p.id === task.id ? { ...p, isCompleted: !p.isCompleted } : p
+                );
+                await updateDoc(studentDocRef, { weeklyPlan: updatedPlan });
+                onToggle();
+                 toast({ title: 'Başarılı', description: 'Görev durumu güncellendi.' });
+            }
+        } catch(e) {
+            console.error("Error updating task status:", e);
+            toast({ title: 'Hata', description: 'Görev durumu güncellenemedi.', variant: 'destructive' });
+        }
+    };
+
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><ClipboardCheck /> Bugünün Planı</CardTitle>
+                <CardDescription>Koçun tarafından bugün için belirlenen hedefler.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {plan.length > 0 ? (
+                    <ul className="space-y-3">
+                        {plan.map(task => (
+                            <li key={task.id} className="flex items-center gap-3 p-3 bg-muted/40 rounded-lg">
+                                <Checkbox
+                                    id={`task-${task.id}`}
+                                    checked={task.isCompleted}
+                                    onCheckedChange={() => handleToggleComplete(task)}
+                                    aria-label={`Mark ${task.goal} as complete`}
+                                />
+                                <div className='flex-1'>
+                                    <label htmlFor={`task-${task.id}`} className="font-semibold text-sm leading-none has-[[data-state=checked]]:line-through has-[[data-state=checked]]:text-muted-foreground">
+                                        <span className="font-bold text-primary">{task.subject}:</span> {task.topic}
+                                    </label>
+                                    <p className="text-xs text-muted-foreground mt-1">{task.goal}</p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">Bugün için planlanmış bir görevin yok. Dinlenmenin tadını çıkar!</p>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 
 function PageContent() {
   const { user, loading: authLoading } = useAuth();
@@ -217,13 +279,16 @@ function PageContent() {
     }
   
     if (studentData) {
+      const todayString = format(new Date(), 'EEEE', { locale: tr });
+      const todaysPlan = (studentData.weeklyPlan || []).filter(task => task.day === todayString);
+      
       return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
           <WelcomeHeader student={studentData} onClearNotifications={clearNotifications} />
           <Separator />
           <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
             <div className="space-y-6">
-               <EventCalendar student={studentData} onUpdate={fetchStudentData} userRole='student'/>
+              <TodaysPlan plan={todaysPlan} onToggle={fetchStudentData} studentId={studentData.id} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <WeeklyProgress
                   studySessions={studentData.studySessions || []}
