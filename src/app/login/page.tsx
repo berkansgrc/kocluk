@@ -31,6 +31,18 @@ const formSchema = z.object({
   password: z.string().min(6, { message: 'Şifre en az 6 karakter olmalıdır.' }),
 });
 
+// A separate component for the Lottie animation to avoid hydration errors with the library.
+const DotLottieComponent = ({className}: {className?: string}) => {
+    return (
+        <DotLottieReact
+            src="https://lottie.host/34caaa3d-834d-4b9f-9d6d-0d4ea8ba269f/xF1VSbNLcn.lottie"
+            loop
+            autoplay
+            className={className}
+        />
+    )
+}
+
 export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login, user, loading, isAdmin } = useAuth();
@@ -125,12 +137,7 @@ export default function LoginPage() {
             <div className="absolute right-0 top-1/2 h-full w-full max-w-2xl -translate-y-1/2">
                 <div className="absolute inset-y-0 right-0 z-0 h-full w-full rounded-full bg-primary/5 blur-[80px]"></div>
             </div>
-             <DotLottieReact
-                src="https://lottie.host/34caaa3d-834d-4b9f-9d6d-0d4ea8ba269f/xF1VSbNLcn.lottie"
-                loop
-                autoplay
-                className="relative z-10 h-auto w-full opacity-90"
-            />
+             <DotLottieComponent className="relative z-10 h-auto w-[200%] max-w-[200%] opacity-90" />
           </div>
         </div>
       </section>
