@@ -492,12 +492,15 @@ function StudentDetailPageContent() {
         const margin = 40;
         let yPosition = margin;
 
+        const cardBgColor = `hsl(${window.getComputedStyle(document.documentElement).getPropertyValue('--card').trim()})` || '#ffffff';
+
+
         for (const card of reportCards) {
             const canvas = await html2canvas(card, {
                 scale: 2,
                 useCORS: true,
                 logging: false,
-                backgroundColor: window.getComputedStyle(document.documentElement).getPropertyValue('--card').trim() || '#ffffff',
+                backgroundColor: cardBgColor,
             });
 
             const imgData = canvas.toDataURL('image/jpeg', 0.8); // Use JPEG with compression
