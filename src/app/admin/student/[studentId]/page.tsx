@@ -477,34 +477,59 @@ function StudentDetailPageContent() {
   const handleDownloadPdf = async () => {
     const element = reportRef.current;
     if (!element || !student) return;
-  
+
     setIsDownloading(true);
     toast({ title: 'Rapor Oluşturuluyor...', description: 'Lütfen bekleyin, PDF dosyası hazırlanıyor.' });
-  
-    // Dynamically import libraries only when needed
+
     const { default: jsPDF } = await import('jspdf');
     const { default: html2canvas } = await import('html2canvas');
-  
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: window.getComputedStyle(document.body).backgroundColor,
-    });
-  
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const canvasWidth = canvas.width;
-    const canvasHeight = canvas.height;
-    const ratio = canvasWidth / canvasHeight;
-    const width = pdfWidth - 40;
-    const height = width / ratio;
-  
-    pdf.addImage(imgData, 'PNG', 20, 20, width, height);
-    pdf.save(`${student.name.replace(' ', '_')}-Rapor-${dateRangeDisplay.replace(' ', '_')}.pdf`);
-    setIsDownloading(false);
-    toast({ title: 'Başarılı!', description: 'Rapor PDF olarak indirildi.' });
+
+    try {
+        const canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: window.getComputedStyle(document.body).backgroundColor,
+            // Use the full scroll height to capture the entire content
+            height: element.scrollHeight,
+            windowHeight: element.scrollHeight,
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const ratio = canvasWidth / canvasHeight;
+        
+        const imgWidth = pdfWidth - 40; // Add some margin
+        const imgHeight = imgWidth / ratio;
+        
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+
+        while (heightLeft > 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+            heightLeft -= pdfHeight;
+        }
+
+        pdf.save(`${student.name.replace(' ', '_')}-Rapor-${dateRangeDisplay.replace(' ', '_')}.pdf`);
+        
+        toast({ title: 'Başarılı!', description: 'Rapor PDF olarak indirildi.' });
+    } catch (error) {
+        console.error("PDF oluşturulurken hata:", error);
+        toast({ title: 'Hata', description: 'PDF raporu oluşturulurken bir sorun oluştu.', variant: 'destructive' });
+    } finally {
+        setIsDownloading(false);
+    }
   };
   
   if (loading || !student) {
@@ -1058,3 +1083,5 @@ export default function StudentDetailPage() {
         </AppLayout>
     )
 }
+
+    
