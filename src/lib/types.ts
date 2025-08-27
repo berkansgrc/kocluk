@@ -69,15 +69,6 @@ export interface AppUser {
     role: 'admin' | 'student';
 }
 
-export interface ContactSubmission {
-    id: string;
-    name: string;
-    phone: string;
-    createdAt: any; // Firestore Timestamp
-    status: 'new' | 'contacted';
-}
-
-
 export interface Student {
   id: string;
   name: string;

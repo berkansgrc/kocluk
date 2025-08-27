@@ -35,7 +35,6 @@ const navItems = [
   { href: '/deneme-analizi', label: 'Deneme Analizi', icon: ClipboardPen, adminOnly: false },
   { href: '/admin', label: 'Admin Paneli', icon: Shield, adminOnly: true },
   { href: '/admin/library', label: 'Kütüphane', icon: Library, adminOnly: true },
-  { href: '/admin/iletisim', label: 'İletişim Talepleri', icon: MailQuestion, adminOnly: true },
 ];
 
 

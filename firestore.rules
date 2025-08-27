@@ -3,53 +3,39 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Helper functions to make rules cleaner and more reusable.
-    function isSignedIn() {
+
+    // Helper functions to make rules more readable.
+    function isAuth() {
       return request.auth != null;
     }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
-    }
-
     function isAdmin() {
-      return isSignedIn() && getUserData(request.auth.uid).role == 'admin';
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
     }
 
-    // Rules for contactSubmissions collection
-    // Allow anyone to create (submit the form).
-    // Allow only admins to read the submissions.
-    // Disallow update and delete for everyone.
-    match /contactSubmissions/{submissionId} {
-      allow create: if true;
-      allow read: if isAdmin();
-      allow update, delete: if false;
-    }
-
-    // Rules for students collection
-    // Allow admins to do anything.
-    // Allow students to read and update their own data.
-    match /students/{studentId} {
-      allow read, write: if isAdmin() || isOwner(studentId);
+    // Default deny all reads and writes
+    match /{document=**} {
+      allow read, write: if false;
     }
     
-    // Rules for users collection
-    // Allow admins to do anything.
-    // Allow users to read their own user role document.
-    match /users/{userId} {
-       allow read, write: if isAdmin();
-       allow read: if isOwner(userId);
+    // Students can read/write their own data. Admins can read anyone's data.
+    match /students/{studentId} {
+      allow read, write: if isOwner(studentId) || isAdmin();
     }
-
-    // Rules for subjects collection
-    // Only admins can read and write to the library.
+    
+    // Users can read their own user object. Admins can read anyone's.
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      // Only admins can create or update user roles.
+      allow create, update: if isAdmin();
+    }
+    
+    // Subjects can be read by any authenticated user, but only written by admins.
     match /subjects/{subjectId} {
-      allow read, write: if isAdmin();
+      allow read: if isAuth();
+      allow write: if isAdmin();
     }
   }
 }
