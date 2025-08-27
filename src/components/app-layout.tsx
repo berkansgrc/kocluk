@@ -22,6 +22,7 @@ import { Button } from './ui/button';
 import { useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
+import { ThemeToggle } from './theme-toggle';
 
 const navItems = [
   { href: '/', label: 'Anasayfa', icon: LayoutDashboard, adminOnly: false },
@@ -131,15 +132,20 @@ function LayoutContent({ children }: { children: ReactNode }) {
         </SidebarContent>
         <SidebarFooter>
            <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={async () => {
-                 await logout();
-                 router.push('/login');
-              }}>
-                <LogOut/>
-                <span>Çıkış Yap</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            <div className='flex items-center justify-between p-2'>
+                <ThemeToggle />
+                <SidebarMenuButton 
+                    onClick={async () => {
+                        await logout();
+                        router.push('/login');
+                    }} 
+                    className="w-auto px-3"
+                    tooltip={{children: 'Çıkış Yap', side: 'right'}}
+                    >
+                    <LogOut/>
+                    <span>Çıkış Yap</span>
+                </SidebarMenuButton>
+            </div>
            </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
