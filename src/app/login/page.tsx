@@ -36,16 +36,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
   const loginCardRef = useRef<HTMLDivElement>(null);
-  const [animationData, setAnimationData] = useState(null);
 
-  useEffect(() => {
-    // This is a direct link to a raw JSON file, which should prevent parsing errors.
-    fetch('https://lottie.host/e3988a6c-6744-4809-9069-108253161453/Fp83oYyBwd.json')
-      .then(response => response.json())
-      .then(data => setAnimationData(data))
-      .catch(error => console.error('Error fetching Lottie animation:', error));
-  }, []);
-  
   const form = useForm<z.infer<typeof formSchema>>({
       resolver: zodResolver(formSchema),
       defaultValues: { email: '', password: '' },
@@ -133,10 +124,10 @@ export default function LoginPage() {
             <div className="absolute right-0 top-1/2 h-full w-full max-w-2xl -translate-y-1/2">
                 <div className="absolute inset-y-0 right-0 z-0 h-full w-full rounded-full bg-primary/5 blur-[80px]"></div>
             </div>
-            {animationData && <Lottie 
-                animationData={animationData}
+            <Lottie 
+                path="https://assets10.lottiefiles.com/packages/lf20_gja1r81s.json"
                 className="relative z-10 h-auto w-full max-w-lg opacity-90"
-            />}
+            />
           </div>
         </div>
       </section>
