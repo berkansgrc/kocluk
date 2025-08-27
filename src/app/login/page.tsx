@@ -138,7 +138,7 @@ export default function LoginPage() {
             <div className="absolute right-0 top-1/2 h-full w-[200%] max-w-[200%] -translate-y-1/2">
                 <div className="absolute inset-y-0 right-0 z-0 h-full w-full rounded-full bg-primary/5 blur-[80px]"></div>
             </div>
-             <div className="absolute inset-y-0 right-0 h-full w-[200%] max-w-[200%]">
+             <div className="absolute inset-y-0 right-0 h-full w-[160%] transform translate-x-1/4">
                 <DotLottieComponent className="relative z-10 h-auto w-full opacity-90" />
             </div>
           </div>
