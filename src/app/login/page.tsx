@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Target, ArrowDown } from 'lucide-react';
+import { Target, ArrowDown, NotebookPen, BrainCircuit, BarChart3 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const formSchema = z.object({
@@ -116,6 +116,60 @@ export default function LoginPage() {
                 Hemen Başla <ArrowDown className="ml-2 h-5 w-5 animate-bounce" />
              </Button>
          </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="w-full bg-secondary/40 py-16 sm:py-24">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold font-heading sm:text-4xl">Platformun Sundukları</h2>
+            <p className="mt-2 text-lg text-muted-foreground">Sınavlara hazırlık sürecini senin için nasıl kolaylaştırıyoruz?</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="transform transition-transform duration-300 hover:scale-105 hover:shadow-xl">
+              <Card className="h-full">
+                <CardHeader className="items-center text-center">
+                  <div className="p-4 bg-primary/10 rounded-full mb-2">
+                    <NotebookPen className="w-8 h-8 text-primary" />
+                  </div>
+                  <CardTitle>Kişiye Özel Çalışma Planı</CardTitle>
+                </CardHeader>
+                <CardContent className="text-center">
+                  <CardDescription>Yapay zeka, performansını analiz eder ve sana özel haftalık çalışma programları oluşturur.</CardDescription>
+                </CardContent>
+              </Card>
+            </div>
+            {/* Feature 2 */}
+            <div className="transform transition-transform duration-300 hover:scale-105 hover:shadow-xl">
+              <Card className="h-full">
+                <CardHeader className="items-center text-center">
+                  <div className="p-4 bg-primary/10 rounded-full mb-2">
+                    <BrainCircuit className="w-8 h-8 text-primary" />
+                  </div>
+                  <CardTitle>7/24 Yapay Zeka Desteği</CardTitle>
+                </CardHeader>
+                <CardContent className="text-center">
+                  <CardDescription>Zayıf olduğun konuları tespit eder ve anında geri bildirimlerle sana yol gösterir.</CardDescription>
+                </CardContent>
+              </Card>
+            </div>
+            {/* Feature 3 */}
+            <div className="transform transition-transform duration-300 hover:scale-105 hover:shadow-xl">
+              <Card className="h-full">
+                <CardHeader className="items-center text-center">
+                  <div className="p-4 bg-primary/10 rounded-full mb-2">
+                    <BarChart3 className="w-8 h-8 text-primary" />
+                  </div>
+                  <CardTitle>Detaylı İlerleme Takibi</CardTitle>
+                </CardHeader>
+                <CardContent className="text-center">
+                  <CardDescription>Grafikler ve raporlarla netlerini, çalışma süreni ve konu bazlı başarı durumunu izle.</CardDescription>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Login Section */}
