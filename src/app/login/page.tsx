@@ -129,7 +129,7 @@ export default function LoginPage() {
                 src="https://lottie.host/34caaa3d-834d-4b9f-9d6d-0d4ea8ba269f/xF1VSbNLcn.lottie"
                 loop
                 autoplay
-                className="relative z-10 h-auto w-full max-w-lg opacity-90"
+                className="relative z-10 h-auto w-full max-w-4xl opacity-90"
             />
           </div>
         </div>
