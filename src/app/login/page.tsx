@@ -94,10 +94,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-background p-4 relative">
         <div className='absolute top-6 left-6 flex items-center gap-2'>
-             <Target className="w-8 h-8 text-accent" />
-             <h1 className='text-2xl font-bold font-headline'>Berkan Hoca</h1>
+             <Target className="w-8 h-8 text-primary" />
+             <h1 className='text-2xl font-bold font-heading'>Berkan Hoca</h1>
         </div>
-      <Card className="w-full max-w-md mx-auto">
+      <Card className="w-full max-w-md mx-auto transition-all hover:shadow-lg">
         <CardHeader>
           <CardTitle>Giriş Yap</CardTitle>
           <CardDescription>

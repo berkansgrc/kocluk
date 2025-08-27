@@ -4,6 +4,19 @@ import './globals.css';
 import { AuthProvider } from '@/hooks/use-auth';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
+import { Poppins, Inter } from 'next/font/google';
+
+const fontSans = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+})
+
+const fontHeading = Poppins({
+  subsets: ['latin'],
+  weight: ['600', '700'],
+  variable: '--font-heading',
+});
+
 
 export const metadata: Metadata = {
   title: 'Berkan Hoca',
@@ -17,19 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap"
-          rel="stylesheet"
-        ></link>
-      </head>
-      <body className="font-body antialiased">
+      <body className={`font-sans antialiased ${fontSans.variable} ${fontHeading.variable}`}>
         <AuthProvider>
           <ThemeProvider
             attribute="class"
