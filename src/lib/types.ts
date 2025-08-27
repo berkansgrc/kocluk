@@ -91,24 +91,3 @@ export interface ExamAnalysis {
   }[];
   generalFeedback: string;
 }
-
-export const ERROR_CATEGORIES = {
-  knowledgeGap: "Bilgi Eksikliği",
-  carelessness: "Dikkatsizlik / İşlem Hatası",
-  misunderstanding: "Soruyu Yanlış Anlama",
-  timePressure: "Süre Yetersizliği",
-  distractor: "İki Şık Arasında Kalma",
-} as const;
-
-export type ErrorCategory = keyof typeof ERROR_CATEGORIES;
-
-export interface ExamResult extends ExamAnalysis {
-    id?: string;
-    userId: string;
-    examName: string;
-    subjectName: string;
-    gradeLevel: string;
-    analyzedAt: any; // Firestore Timestamp
-    topicResults: ExamTopicResult[];
-    errorAnalysis: Record<ErrorCategory, number>;
-}
