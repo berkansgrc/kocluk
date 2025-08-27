@@ -22,6 +22,8 @@ function IletisimPageContent() {
     const fetchSubmissions = useCallback(async () => {
         setLoading(true);
         try {
+            // Güvenlik kurallarının doğru çalışması için sorguyu basitleştiriyoruz.
+            // Firestore, bu isteği yapan kullanıcının yönetici olup olmadığını kurallar üzerinden denetleyecektir.
             const submissionsQuery = query(collection(db, 'contactSubmissions'), orderBy('createdAt', 'desc'));
             const querySnapshot = await getDocs(submissionsQuery);
             const submissionsList = querySnapshot.docs.map(doc => ({
@@ -33,7 +35,7 @@ function IletisimPageContent() {
             console.error('İletişim talepleri getirilirken hata:', error);
             toast({
                 title: 'Hata',
-                description: 'İletişim talepleri alınamadı.',
+                description: 'İletişim talepleri alınamadı. Lütfen izinlerinizi kontrol edin.',
                 variant: 'destructive',
             });
         } finally {
