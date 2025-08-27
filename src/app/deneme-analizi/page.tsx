@@ -9,25 +9,31 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import type { ExamAnalysis } from '@/lib/types';
+import type { ExamAnalysis, Subject } from '@/lib/types';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BrainCircuit, ClipboardPen, PlusCircle, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
+import { BrainCircuit, ClipboardPen, TrendingDown, TrendingUp } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { useAuth } from '@/hooks/use-auth';
 import { analyzeExam } from '@/ai/flows/exam-analyzer';
 import { Badge } from '@/components/ui/badge';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const GRADE_LEVELS = ["5", "6", "7", "8", "9", "10", "11", "12", "YKS"];
 
 const examFormSchema = z.object({
     examName: z.string().min(3, { message: 'Deneme adı en az 3 karakter olmalıdır.' }),
-    subjectName: z.string().min(2, { message: 'Ders adı en az 2 karakter olmalıdır.'}),
-    kazanimlar: z.array(z.object({
-        name: z.string().min(5, { message: 'Kazanım adı en az 5 karakter olmalıdır.' }),
+    gradeLevel: z.string({ required_error: 'Lütfen bir sınıf seviyesi seçin.' }),
+    subjectId: z.string({ required_error: 'Lütfen bir ders seçin.' }),
+    topicResults: z.array(z.object({
+        topic: z.string(),
         correct: z.coerce.number().int().min(0).default(0),
         incorrect: z.coerce.number().int().min(0).default(0),
         empty: z.coerce.number().int().min(0).default(0),
-    })).min(1, { message: 'Analiz için en az bir kazanım eklemelisiniz.' })
+    })).min(1, { message: 'Analiz için derse ait en az bir konu olmalıdır.' })
 });
 
 type ExamFormValues = z.infer<typeof examFormSchema>;
@@ -37,19 +43,71 @@ function DenemeAnaliziContent() {
     const { toast } = useToast();
     const [analysis, setAnalysis] = useState<ExamAnalysis | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [loadingSubjects, setLoadingSubjects] = useState(true);
 
     const form = useForm<ExamFormValues>({
         resolver: zodResolver(examFormSchema),
-        defaultValues: { examName: '', subjectName: '', kazanimlar: [{ name: '', correct: 0, incorrect: 0, empty: 0 }] },
+        defaultValues: { examName: '', topicResults: [] },
     });
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields, replace } = useFieldArray({
         control: form.control,
-        name: "kazanimlar"
+        name: "topicResults"
     });
+
+    // Fetch subjects from Firestore
+    useEffect(() => {
+        const fetchSubjects = async () => {
+            setLoadingSubjects(true);
+            try {
+                const querySnapshot = await getDocs(collection(db, 'subjects'));
+                const subjectsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subject));
+                setSubjects(subjectsList);
+            } catch (error) {
+                console.error("Dersler alınırken hata:", error);
+                toast({ title: "Hata", description: "Ders listesi alınamadı.", variant: "destructive" });
+            } finally {
+                setLoadingSubjects(false);
+            }
+        };
+        fetchSubjects();
+    }, [toast]);
+    
+    const selectedGradeLevel = form.watch('gradeLevel');
+    const selectedSubjectId = form.watch('subjectId');
+
+    const filteredSubjects = useMemo(() => {
+        return subjects.filter(s => s.gradeLevel === selectedGradeLevel);
+    }, [subjects, selectedGradeLevel]);
+
+    const selectedSubject = useMemo(() => {
+        return subjects.find(s => s.id === selectedSubjectId);
+    }, [subjects, selectedSubjectId]);
+
+    // Reset subject and topics when grade level changes
+    useEffect(() => {
+        form.resetField('subjectId');
+        replace([]);
+    }, [selectedGradeLevel, form, replace]);
+
+    // Update topics when subject changes
+    useEffect(() => {
+        if (selectedSubject && selectedSubject.topics) {
+            replace(selectedSubject.topics.map(topic => ({
+                topic: topic.name,
+                correct: 0,
+                incorrect: 0,
+                empty: 0
+            })));
+        } else {
+            replace([]);
+        }
+    }, [selectedSubject, replace]);
+
 
     async function onSubmit(values: ExamFormValues) {
-        if (!user) return;
+        if (!user || !selectedSubject) return;
 
         setIsAnalyzing(true);
         setAnalysis(null);
@@ -59,13 +117,8 @@ function DenemeAnaliziContent() {
             const analysisInput = {
                 studentName: user.displayName || 'Öğrenci',
                 examName: values.examName,
-                subjectName: values.subjectName,
-                topicResults: values.kazanimlar.map(k => ({
-                    topic: k.name, // AI flow uses 'topic' field, so we map 'name' to 'topic'
-                    correct: k.correct,
-                    incorrect: k.incorrect,
-                    empty: k.empty,
-                }))
+                subjectName: selectedSubject.name,
+                topicResults: values.topicResults,
             };
             
             const result = await analyzeExam(analysisInput);
@@ -83,7 +136,7 @@ function DenemeAnaliziContent() {
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight font-headline">Deneme Analizi</h1>
-                <p className="text-muted-foreground">Deneme sınavı sonuçlarını kazanım bazında girerek detaylı analiz ve kişiselleştirilmiş geri bildirimler al.</p>
+                <p className="text-muted-foreground">Deneme sınavı sonuçlarını konu bazında girerek detaylı analiz ve kişiselleştirilmiş geri bildirimler al.</p>
             </div>
             <Separator />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -91,7 +144,7 @@ function DenemeAnaliziContent() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Deneme Bilgileri</CardTitle>
-                            <CardDescription>Analiz etmek istediğin denemenin bilgilerini ve kazanım sonuçlarını gir.</CardDescription>
+                            <CardDescription>Analiz etmek istediğin denemenin bilgilerini ve konu sonuçlarını gir.</CardDescription>
                         </CardHeader>
                         <CardContent>
                            <Form {...form}>
@@ -107,64 +160,73 @@ function DenemeAnaliziContent() {
                                             </FormItem>
                                         )}
                                     />
-                                     <FormField
-                                        control={form.control}
-                                        name="subjectName"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Ders Adı</FormLabel>
-                                                <FormControl><Input placeholder="Örn: Matematik" {...field} /></FormControl>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField
+                                            control={form.control}
+                                            name="gradeLevel"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                <FormLabel>Sınıf Seviyesi</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                    <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Bir seviye seçin" />
+                                                    </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                    {GRADE_LEVELS.map(level => (
+                                                        <SelectItem key={level} value={level}>{level === 'YKS' ? 'YKS' : `${level}. Sınıf`}</SelectItem>
+                                                    ))}
+                                                    </SelectContent>
+                                                </Select>
                                                 <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="subjectId"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                <FormLabel>Ders</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value} disabled={!selectedGradeLevel || loadingSubjects}>
+                                                    <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder={loadingSubjects ? "Yükleniyor..." : !selectedGradeLevel ? "Önce seviye seçin" : "Bir ders seçin"} />
+                                                    </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                    {filteredSubjects.map(subject => (
+                                                        <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
+                                                    ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+                                    
                                     <div className="space-y-4">
-                                        <h3 className="text-lg font-medium">Kazanım Sonuçları</h3>
+                                        <h3 className="text-lg font-medium">Konu Sonuçları</h3>
                                         <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
                                         {fields.map((field, index) => (
-                                            <div key={field.id} className="p-4 border rounded-md space-y-3 bg-muted/20 relative">
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`kazanimlar.${index}.name`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Kazanım Açıklaması</FormLabel>
-                                                            <FormControl><Input placeholder="Örn: Üslü ifadelerle ilgili temel kuralları anlar." {...field} /></FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
+                                            <div key={field.id} className="p-4 border rounded-md space-y-3 bg-muted/20">
+                                                <FormLabel className="font-medium">{field.topic}</FormLabel>
                                                 <div className="grid grid-cols-3 gap-2">
-                                                    <FormField control={form.control} name={`kazanimlar.${index}.correct`} render={({ field }) => (<FormItem><FormLabel>Doğru</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
-                                                    <FormField control={form.control} name={`kazanimlar.${index}.incorrect`} render={({ field }) => (<FormItem><FormLabel>Yanlış</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
-                                                    <FormField control={form.control} name={`kazanimlar.${index}.empty`} render={({ field }) => (<FormItem><FormLabel>Boş</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name={`topicResults.${index}.correct`} render={({ field }) => (<FormItem><FormLabel>Doğru</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name={`topicResults.${index}.incorrect`} render={({ field }) => (<FormItem><FormLabel>Yanlış</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name={`topicResults.${index}.empty`} render={({ field }) => (<FormItem><FormLabel>Boş</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
                                                 </div>
-                                                 <Button
-                                                    type="button"
-                                                    variant="destructive"
-                                                    size="icon"
-                                                    className="absolute top-2 right-2 h-6 w-6"
-                                                    onClick={() => remove(index)}
-                                                    disabled={fields.length <= 1}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
                                             </div>
                                         ))}
+                                        {selectedSubjectId && fields.length === 0 && (
+                                            <p className='text-sm text-muted-foreground text-center py-4'>Bu derse ait konu bulunamadı. Lütfen kütüphaneden ekleyin.</p>
+                                        )}
                                         </div>
-                                         <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => append({ name: '', correct: 0, incorrect: 0, empty: 0 })}
-                                        >
-                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                            Kazanım Ekle
-                                        </Button>
-                                         {form.formState.errors.kazanimlar?.root && <p className='text-sm font-medium text-destructive'>{form.formState.errors.kazanimlar.root.message}</p>}
+                                        {form.formState.errors.topicResults?.root && <p className='text-sm font-medium text-destructive'>{form.formState.errors.topicResults.root.message}</p>}
                                     </div>
-                                    <Button type="submit" className="w-full" disabled={isAnalyzing}>
+                                    <Button type="submit" className="w-full" disabled={isAnalyzing || !selectedSubjectId || fields.length === 0}>
                                         {isAnalyzing ? 'Analiz Ediliyor...' : <><BrainCircuit className="mr-2" /> Analiz Yap</>}
                                     </Button>
                                 </form>
@@ -208,15 +270,15 @@ function DenemeAnaliziContent() {
                                     <Separator />
                                     <div className="grid grid-cols-1 gap-6">
                                         <div>
-                                            <h3 className="text-lg font-semibold flex items-center gap-2"><TrendingUp className="text-emerald-500" /> Güçlü Olduğun Kazanımlar</h3>
+                                            <h3 className="text-lg font-semibold flex items-center gap-2"><TrendingUp className="text-emerald-500" /> Güçlü Olduğun Konular</h3>
                                             <div className='mt-2 flex flex-col items-start gap-1'>
                                                 {analysis.strengths.length > 0 ? analysis.strengths.map(topic => (
                                                     <Badge key={topic} variant="secondary" className='bg-emerald-100 text-emerald-800 hover:bg-emerald-200 text-left h-auto whitespace-normal'>{topic}</Badge>
-                                                )) : <p className='text-sm text-muted-foreground'>Belirgin bir güçlü kazanım bulunamadı.</p>}
+                                                )) : <p className='text-sm text-muted-foreground'>Belirgin bir güçlü konu bulunamadı.</p>}
                                             </div>
                                         </div>
                                         <div>
-                                            <h3 className="text-lg font-semibold flex items-center gap-2"><TrendingDown className="text-destructive" /> Odaklanman Gereken Kazanımlar</h3>
+                                            <h3 className="text-lg font-semibold flex items-center gap-2"><TrendingDown className="text-destructive" /> Odaklanman Gereken Konular</h3>
                                             <div className="mt-2 space-y-4">
                                                 {analysis.weaknesses.map(weakness => (
                                                     <div key={weakness.topic} className='p-3 border-l-4 border-amber-500 bg-amber-500/10 rounded-r-md'>
@@ -231,7 +293,7 @@ function DenemeAnaliziContent() {
                             ) : (
                                 <div className="flex flex-col items-center justify-center text-center h-full min-h-80 text-muted-foreground">
                                     <ClipboardPen className="w-16 h-16 mb-4" />
-                                    <p>Analize başlamak için lütfen deneme bilgilerini ve kazanım sonuçlarını gir.</p>
+                                    <p>Analize başlamak için lütfen deneme bilgilerini ve konu sonuçlarını gir.</p>
                                 </div>
                             )}
                         </CardContent>
@@ -249,3 +311,5 @@ export default function DenemeAnaliziPage() {
         </AppLayout>
     );
 }
+
+    
