@@ -3,41 +3,46 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if a user is an admin
-    function isAdmin(userId) {
-      return exists(/databases/$(database)/documents/users/$(userId)) &&
-             get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin';
-    }
-
-    // Users collection: only admins can read/write user roles
-    match /users/{userId} {
-      allow read, write: if isAdmin(request.auth.uid);
-    }
-
-    // Students collection:
-    // - Students can read/write their own data
-    // - Admins can read/write any student's data
-    match /students/{studentId} {
-      allow read, write: if request.auth.uid == studentId || isAdmin(request.auth.uid);
-    }
-
-    // Subjects collection:
-    // - Authenticated users (students and admins) can read subjects
-    // - Admins can create, update, delete subjects
-    match /subjects/{subjectId} {
-        allow read: if request.auth != null;
-        allow write: if isAdmin(request.auth.uid);
+  
+    function isAdmin() {
+      // Check if the user is an admin by looking up their role in the 'users' collection.
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // ExamResults collection:
-    // - Students can create and read their own results
-    // - Admins can read anyone's results
-    // - No one can update or delete results from the client-side to ensure data integrity
+    function isOwner(userId) {
+      // Check if the requesting user is the owner of the document.
+      return request.auth.uid == userId;
+    }
+
+    // Rules for the 'students' collection
+    match /students/{studentId} {
+      allow read, update, delete: if isAdmin() || isOwner(studentId);
+      allow create: if isAdmin();
+    }
+    
+    // Rules for the 'users' collection (defines roles)
+    match /users/{userId} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Rules for the 'subjects' collection
+    match /subjects/{subjectId} {
+      allow read: if request.auth != null; // All authenticated users can read subjects.
+      allow write: if isAdmin(); // Only admins can create/update/delete subjects.
+    }
+    
+    // Rules for the 'examResults' collection
     match /examResults/{resultId} {
-        allow read: if request.auth.uid == resource.data.userId || isAdmin(request.auth.uid);
-        allow create: if request.auth.uid == request.resource.data.userId;
-        allow update, delete: if false; // Protect data integrity
+      // Allow reading a single document if the user is an admin or the owner.
+      allow get: if isAdmin() || isOwner(get(/databases/$(database)/documents/examResults/$(resultId)).data.userId);
+      // Allow listing documents if the user is an admin or is querying for their own results.
+      allow list: if isAdmin() || (request.query.limit <= 100 && request.query.filters.size() > 0 && request.query.filters[0].field == 'userId' && request.query.filters[0].value == request.auth.uid);
+      // Allow creating a document if the user is the owner of the new data.
+      allow create: if isOwner(request.resource.data.userId);
+      // No updates or deletes allowed for now to preserve data integrity.
+      allow update, delete: if false; 
     }
   }
 }
