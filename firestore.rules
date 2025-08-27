@@ -1,0 +1,58 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      // Allow access if the user has the 'admin' role in their user document
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Rules for 'users' collection
+    match /users/{userId} {
+       // Admins can read any user document
+       // Students can only read their own document
+      allow read: if isSignedIn() && (isAdmin() || isOwner(userId));
+      // Only admins can create or update user roles
+      allow write: if isSignedIn() && isAdmin();
+    }
+    
+    // Rules for 'students' collection
+    match /students/{studentId} {
+       // Admins can read any student document
+       // Students can only read/update their own document
+      allow read: if isSignedIn() && (isAdmin() || isOwner(studentId));
+      allow update: if isSignedIn() && (isAdmin() || isOwner(studentId));
+      // Only admins can create new student documents
+      allow create: if isSignedIn() && isAdmin();
+      // Only admins can delete student documents
+      allow delete: if isSignedIn() && isAdmin();
+    }
+    
+    // Rules for 'subjects' collection
+    match /subjects/{subjectId} {
+      // All authenticated users can read subjects, only admins can write
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    // Rules for 'examResults' collection
+    match /examResults/{resultId} {
+      // Students can create their own results.
+      allow create: if isSignedIn(); 
+      // Students can read their own results, admins can read any result.
+      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      // No one can update or delete results for data integrity.
+      allow update, delete: if false;
+    }
+  }
+}
