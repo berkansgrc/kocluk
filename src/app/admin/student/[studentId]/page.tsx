@@ -475,8 +475,8 @@ function StudentDetailPageContent() {
 
 
   const handleDownloadPdf = async () => {
-    const element = reportRef.current;
-    if (!element || !student) return;
+    const reportContainer = reportRef.current;
+    if (!reportContainer || !student) return;
 
     setIsDownloading(true);
     toast({ title: 'Rapor Oluşturuluyor...', description: 'Lütfen bekleyin, PDF dosyası hazırlanıyor.' });
@@ -485,42 +485,34 @@ function StudentDetailPageContent() {
     const { default: html2canvas } = await import('html2canvas');
 
     try {
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: window.getComputedStyle(document.body).backgroundColor,
-            // Use the full scroll height to capture the entire content
-            height: element.scrollHeight,
-            windowHeight: element.scrollHeight,
-        });
-
-        const imgData = canvas.toDataURL('image/png');
+        const reportCards = Array.from(reportContainer.querySelectorAll('.report-card')) as HTMLElement[];
         const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-        
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
-        
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
-        const ratio = canvasWidth / canvasHeight;
-        
-        const imgWidth = pdfWidth - 40; // Add some margin
-        const imgHeight = imgWidth / ratio;
-        
-        let heightLeft = imgHeight;
-        let position = 0;
+        const margin = 40;
+        let yPosition = margin;
 
-        pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+        for (const card of reportCards) {
+            const canvas = await html2canvas(card, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: window.getComputedStyle(document.documentElement).getPropertyValue('--card').trim() || '#ffffff',
+            });
 
-        while (heightLeft > 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
-            heightLeft -= pdfHeight;
+            const imgData = canvas.toDataURL('image/jpeg', 0.8); // Use JPEG with compression
+            const imgWidth = pdfWidth - margin * 2;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            if (yPosition + imgHeight + margin > pdfHeight) {
+                pdf.addPage();
+                yPosition = margin;
+            }
+
+            pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+            yPosition += imgHeight + 20; // Add some space between cards
         }
-
+        
         pdf.save(`${student.name.replace(' ', '_')}-Rapor-${dateRangeDisplay.replace(' ', '_')}.pdf`);
         
         toast({ title: 'Başarılı!', description: 'Rapor PDF olarak indirildi.' });
@@ -531,6 +523,7 @@ function StudentDetailPageContent() {
         setIsDownloading(false);
     }
   };
+
   
   if (loading || !student) {
     return (
@@ -1034,7 +1027,7 @@ function StudentDetailPageContent() {
        </div>
        
       <div ref={reportRef} className="bg-background p-0 sm:p-4 rounded-lg">
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-5 mt-6">
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-5 mt-6 report-card">
             <div className="lg:col-span-3">
             <SolvedQuestionsChart studySessions={filteredSessions} />
             </div>
@@ -1043,7 +1036,7 @@ function StudentDetailPageContent() {
             </div>
         </div>
         <div className="grid gap-6 mt-6">
-          <Card>
+          <Card className='report-card'>
             <CardHeader>
               <CardTitle>Ders Performans Trendi</CardTitle>
               <CardDescription>Derslerdeki başarı oranının zaman içindeki değişimini inceleyin.</CardDescription>
@@ -1052,7 +1045,7 @@ function StudentDetailPageContent() {
               <PerformanceTrendChart studySessions={filteredSessions} />
             </CardContent>
           </Card>
-          <Card>
+          <Card className='report-card'>
             <CardHeader>
               <CardTitle>Konu Güçlü & Zayıf Yön Matrisi</CardTitle>
               <CardDescription>Farklı derslerdeki ve konulardaki performansınızı analiz edin.</CardDescription>
@@ -1061,7 +1054,7 @@ function StudentDetailPageContent() {
               <StrengthWeaknessMatrix studySessions={filteredSessions} />
             </CardContent>
           </Card>
-          <Card>
+          <Card className='report-card'>
             <CardHeader>
               <CardTitle>Performans/Efor Matrisi</CardTitle>
               <CardDescription>Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın.</CardDescription>
