@@ -18,7 +18,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen, ClipboardCheck } from 'lucide-react';
+import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen, ClipboardCheck, MailQuestion } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +35,7 @@ const navItems = [
   { href: '/deneme-analizi', label: 'Deneme Analizi', icon: ClipboardPen, adminOnly: false },
   { href: '/admin', label: 'Admin Paneli', icon: Shield, adminOnly: true },
   { href: '/admin/library', label: 'Kütüphane', icon: Library, adminOnly: true },
+  { href: '/admin/iletisim', label: 'İletişim Talepleri', icon: MailQuestion, adminOnly: true },
 ];
 
 

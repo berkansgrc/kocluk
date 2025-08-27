@@ -9,6 +9,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, Timestamp } from 'firebase/firestore';
 
 
 import { Button } from '@/components/ui/button';
@@ -22,13 +24,19 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Target, ArrowRight, NotebookPen, BrainCircuit, BarChart3 } from 'lucide-react';
+import { Target, ArrowRight, NotebookPen, BrainCircuit, BarChart3, Send } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 
-const formSchema = z.object({
+const loginFormSchema = z.object({
   email: z.string().email({ message: 'Lütfen geçerli bir e-posta adresi girin.' }),
   password: z.string().min(6, { message: 'Şifre en az 6 karakter olmalıdır.' }),
+});
+
+const contactFormSchema = z.object({
+    name: z.string().min(2, { message: 'İsim en az 2 karakter olmalıdır.' }),
+    phone: z.string().min(10, { message: 'Lütfen geçerli bir telefon numarası girin.' }),
 });
 
 // A separate component for the Lottie animation to avoid hydration errors with the library.
@@ -45,15 +53,21 @@ const DotLottieComponent = ({className}: {className?: string}) => {
 
 export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isContactSubmitting, setIsContactSubmitting] = useState(false);
   const { login, user, loading, isAdmin } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const loginCardRef = useRef<HTMLDivElement>(null);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-      resolver: zodResolver(formSchema),
+  const loginForm = useForm<z.infer<typeof loginFormSchema>>({
+      resolver: zodResolver(loginFormSchema),
       defaultValues: { email: '', password: '' },
     });
+
+  const contactForm = useForm<z.infer<typeof contactFormSchema>>({
+    resolver: zodResolver(contactFormSchema),
+    defaultValues: { name: '', phone: '' },
+  });
   
   useEffect(() => {
     if (loading) return;
@@ -67,7 +81,7 @@ export default function LoginPage() {
   }, [user, loading, router, isAdmin]);
 
 
-  const handleLogin = async (values: z.infer<typeof formSchema>) => {
+  const handleLogin = async (values: z.infer<typeof loginFormSchema>) => {
     setIsSubmitting(true);
     try {
       await login(values.email, values.password);
@@ -90,6 +104,32 @@ export default function LoginPage() {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleContactSubmit = async (values: z.infer<typeof contactFormSchema>) => {
+    setIsContactSubmitting(true);
+    try {
+        await addDoc(collection(db, 'contactSubmissions'), {
+            name: values.name,
+            phone: values.phone,
+            createdAt: Timestamp.now(),
+            status: 'new',
+        });
+        toast({
+            title: 'Mesajınız Gönderildi!',
+            description: 'En kısa sürede sizinle iletişime geçeceğiz.',
+        });
+        contactForm.reset();
+    } catch (error) {
+        console.error("İletişim formu gönderilirken hata:", error);
+        toast({
+            title: 'Hata',
+            description: 'Mesajınız gönderilirken bir sorun oluştu. Lütfen daha sonra tekrar deneyin.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsContactSubmitting(false);
     }
   };
 
@@ -137,7 +177,7 @@ export default function LoginPage() {
             <div className="absolute right-0 top-1/2 h-full w-[200%] max-w-[200%] -translate-y-1/2">
                 <div className="absolute inset-y-0 right-0 z-0 h-full w-full rounded-full bg-primary/5 blur-[80px]"></div>
             </div>
-             <DotLottieComponent className="relative z-10 h-auto w-full opacity-90" />
+             <DotLottieComponent className="relative z-10 h-auto w-[200%] max-w-[200%] opacity-90" />
           </div>
         </div>
       </section>
@@ -196,8 +236,61 @@ export default function LoginPage() {
         </div>
       </section>
 
+      {/* Contact Section */}
+       <section id="contact" className="w-full bg-background py-16 sm:py-24">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div className="text-left">
+                <h2 className="text-3xl font-bold font-heading sm:text-4xl">Bizimle İletişime Geçin</h2>
+                <p className="mt-4 text-lg text-muted-foreground">
+                    Platformumuz hakkında daha fazla bilgi almak, kayıt olmak veya herhangi bir sorunuz için aşağıdaki formu doldurarak bize ulaşabilirsiniz. Eğitim danışmanlarımız en kısa sürede size geri dönüş yapacaktır.
+                </p>
+            </div>
+            <div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Hızlı İletişim Formu</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Form {...contactForm}>
+                            <form onSubmit={contactForm.handleSubmit(handleContactSubmit)} className="space-y-4">
+                                <FormField
+                                    control={contactForm.control}
+                                    name="name"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>İsim Soyisim</FormLabel>
+                                            <FormControl><Input placeholder="Adınız ve Soyadınız" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={contactForm.control}
+                                    name="phone"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Telefon Numaranız</FormLabel>
+                                            <FormControl><Input placeholder="05XX XXX XX XX" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <Button type="submit" className="w-full" disabled={isContactSubmitting}>
+                                    {isContactSubmitting ? 'Gönderiliyor...' : <><Send className="mr-2"/> Bilgilerimi Gönder</>}
+                                </Button>
+                            </form>
+                        </Form>
+                    </CardContent>
+                </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
       {/* Login Section */}
-      <section ref={loginCardRef} id="login" className="flex min-h-screen w-full items-center justify-center bg-background p-4">
+      <section ref={loginCardRef} id="login" className="flex min-h-screen w-full items-center justify-center bg-secondary/40 p-4">
         <Card className="w-full max-w-md mx-auto transition-all shadow-lg hover:shadow-xl">
           <CardHeader>
             <CardTitle>Giriş Yap</CardTitle>
@@ -205,17 +298,17 @@ export default function LoginPage() {
               Devam etmek için hesabınıza giriş yapın.
             </CardDescription>
           </CardHeader>
-          <form onSubmit={form.handleSubmit(handleLogin)}>
+          <form onSubmit={loginForm.handleSubmit(handleLogin)}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">E-posta</Label>
-                <Input id="email" type="email" placeholder="ornek@eposta.com" {...form.register('email')} />
-                {form.formState.errors.email && <p className='text-xs text-destructive'>{form.formState.errors.email.message}</p>}
+                <Input id="email" type="email" placeholder="ornek@eposta.com" {...loginForm.register('email')} />
+                {loginForm.formState.errors.email && <p className='text-xs text-destructive'>{loginForm.formState.errors.email.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Şifre</Label>
-                <Input id="password" type="password" {...form.register('password')} />
-                {form.formState.errors.password && <p className='text-xs text-destructive'>{form.formState.errors.password.message}</p>}
+                <Input id="password" type="password" {...loginForm.register('password')} />
+                {loginForm.formState.errors.password && <p className='text-xs text-destructive'>{loginForm.formState.errors.password.message}</p>}
               </div>
             </CardContent>
             <CardFooter>

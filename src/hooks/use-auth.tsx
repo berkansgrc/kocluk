@@ -31,7 +31,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const protectedRoutes = ['/', '/plan', '/reports', '/resources', '/achievements', '/zaman-yonetimi', '/deneme-analizi', '/hata-raporu'];
-export const adminRoutes = ['/admin', '/admin/student', '/admin/library'];
+export const adminRoutes = ['/admin', '/admin/student', '/admin/library', '/admin/iletisim'];
 
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
