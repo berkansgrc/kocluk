@@ -40,8 +40,13 @@ const ExamAnalyzerOutputSchema = z.object({
 export type ExamAnalyzerOutput = z.infer<typeof ExamAnalyzerOutputSchema>;
 
 export async function analyzeExam(input: ExamAnalyzerInput): Promise<ExamAnalyzerOutput> {
+  // Filter out topics where no questions were answered
+  const relevantTopics = input.topicResults.filter(topic => 
+    (topic.correct + topic.incorrect + topic.empty) > 0
+  );
+
   // Pre-process data to calculate net and success rate for each topic (kazanım)
-  const processedTopics = input.topicResults.map(topic => {
+  const processedTopics = relevantTopics.map(topic => {
     const totalQuestions = topic.correct + topic.incorrect + topic.empty;
     const net = topic.correct - (topic.incorrect / 4);
     const successRate = totalQuestions > 0 ? (net / totalQuestions) * 100 : 0;
