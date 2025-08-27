@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
@@ -19,12 +20,13 @@ interface SolvedQuestionsChartProps {
 
 export default function SolvedQuestionsChart({ studySessions }: SolvedQuestionsChartProps) {
   const data = useMemo(() => {
+    const questionSessions = studySessions.filter(s => s.type !== 'topic');
     const endDate = new Date();
     const startDate = subDays(endDate, 6);
     const dateRange = eachDayOfInterval({ start: startDate, end: endDate });
 
     return dateRange.map((date) => {
-      const dailySessions = studySessions.filter((session) => {
+      const dailySessions = questionSessions.filter((session) => {
         // Convert Firestore Timestamp to Date for comparison
         const sessionDate = session.date && typeof session.date.seconds === 'number'
           ? fromUnixTime(session.date.seconds)

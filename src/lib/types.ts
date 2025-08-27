@@ -16,6 +16,7 @@ export interface StudySession {
   durationInMinutes: number;
   questionsSolved: number;
   questionsCorrect: number;
+  type?: 'question' | 'topic';
 }
 
 export interface Resource {

@@ -52,11 +52,12 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 export default function PerformanceEffortMatrix({ studySessions }: PerformanceEffortMatrixProps) {
   const { data, avgDuration, avgAccuracy } = useMemo(() => {
-    if (!studySessions || studySessions.length === 0) {
+    const questionSessions = studySessions.filter(s => s.type !== 'topic');
+    if (!questionSessions || questionSessions.length === 0) {
       return { data: [], avgDuration: 0, avgAccuracy: 0 };
     }
 
-    const stats = studySessions.reduce((acc, session) => {
+    const stats = questionSessions.reduce((acc, session) => {
       const key = `${session.subject} - ${session.topic}`;
       if (!acc[key]) {
         acc[key] = {

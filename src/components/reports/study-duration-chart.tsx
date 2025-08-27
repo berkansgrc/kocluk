@@ -27,8 +27,9 @@ const COLORS = [
 
 export default function StudyDurationChart({ studySessions }: StudyDurationChartProps) {
   const data = useMemo(() => {
+    const questionSessions = studySessions.filter(s => s.type !== 'topic');
     const thirtyDaysAgo = subDays(new Date(), 30);
-    const recentSessions = studySessions.filter((session) => {
+    const recentSessions = questionSessions.filter((session) => {
        const sessionDate = session.date && typeof session.date.seconds === 'number'
           ? fromUnixTime(session.date.seconds)
           : new Date(session.date);
@@ -48,7 +49,7 @@ export default function StudyDurationChart({ studySessions }: StudyDurationChart
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Zaman Dağılımı</CardTitle>
+        <CardTitle>Soru Çözümü Zaman Dağılımı</CardTitle>
         <CardDescription>Son 30 gün için derslere göre çalışma süresi.</CardDescription>
       </CardHeader>
       <CardContent>

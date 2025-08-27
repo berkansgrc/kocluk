@@ -49,14 +49,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function PerformanceTrendChart({ studySessions }: PerformanceTrendChartProps) {
   const { data, subjects } = useMemo(() => {
-    if (!studySessions || studySessions.length === 0) {
+    const questionSessions = studySessions.filter(s => s.type !== 'topic');
+    if (!questionSessions || questionSessions.length === 0) {
         return { data: [], subjects: [] };
     }
 
     const weeklyData: { [week: string]: { [subject: string]: { correct: number; total: number } } } = {};
     const allSubjects = new Set<string>();
 
-    studySessions.forEach(session => {
+    questionSessions.forEach(session => {
         const sessionDate = session.date && typeof session.date.seconds === 'number'
           ? fromUnixTime(session.date.seconds)
           : new Date(session.date);

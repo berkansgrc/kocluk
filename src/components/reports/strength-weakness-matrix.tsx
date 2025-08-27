@@ -32,7 +32,8 @@ export default function StrengthWeaknessMatrix({ studySessions }: StrengthWeakne
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>({ key: 'accuracy', direction: 'asc' });
 
   const subjectStats = useMemo(() => {
-    const stats = studySessions.reduce((acc, session) => {
+    const questionSessions = studySessions.filter(s => s.type !== 'topic');
+    const stats = questionSessions.reduce((acc, session) => {
       const key = `${session.subject} - ${session.topic}`;
       if (!acc[key]) {
         acc[key] = {

@@ -31,6 +31,7 @@ import {
 import { tr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { AppLayout } from '@/components/app-layout';
+import TopicStudyChart from '@/components/reports/topic-study-chart';
 
 type TimeRange = 'weekly' | 'monthly' | 'yearly' | 'all';
 
@@ -202,17 +203,18 @@ function ReportsPageContent() {
        </div>
 
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mt-6">
-        <SolvedQuestionsChart studySessions={filteredSessions} />
-        <StudyDurationChart studySessions={filteredSessions} />
+        <SolvedQuestionsChart studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
+        <StudyDurationChart studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
       </div>
       <div className="grid gap-6 mt-6">
+        <TopicStudyChart studySessions={filteredSessions.filter(s => s.type === 'topic')} />
         <Card>
             <CardHeader>
               <CardTitle>Ders Performans Trendi</CardTitle>
               <CardDescription>Derslerdeki başarı oranının zaman içindeki değişimini inceleyin.</CardDescription>
             </CardHeader>
             <CardContent>
-              <PerformanceTrendChart studySessions={filteredSessions} />
+              <PerformanceTrendChart studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
             </CardContent>
           </Card>
         <Card>
@@ -223,7 +225,7 @@ function ReportsPageContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <StrengthWeaknessMatrix studySessions={filteredSessions} />
+            <StrengthWeaknessMatrix studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
           </CardContent>
         </Card>
         <Card>
@@ -234,7 +236,7 @@ function ReportsPageContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <PerformanceEffortMatrix studySessions={filteredSessions} />
+            <PerformanceEffortMatrix studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
           </CardContent>
         </Card>
       </div>
