@@ -5,14 +5,14 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp, collection, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import type { Student, Assignment, Resource, StudySession, Subject, WeeklyPlanItem } from '@/lib/types';
+import type { Student, Assignment, Resource, StudySession, WeeklyPlanItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight, Download, Bot } from 'lucide-react';
+import { ArrowLeft, BookCheck, FileUp, KeyRound, BookOpen, Trash2, Settings, Target, GraduationCap, Pencil, ChevronLeft, ChevronRight, Download, Bot, CalendarDays } from 'lucide-react';
 import SolvedQuestionsChart from '@/components/reports/solved-questions-chart';
 import StudyDurationChart from '@/components/reports/study-duration-chart';
 import StrengthWeaknessMatrix from '@/components/reports/strength-weakness-matrix';
@@ -65,6 +65,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import PerformanceTrendChart from '@/components/reports/performance-trend-chart';
 import { AppLayout } from '@/components/app-layout';
 import TopicStudyChart from '@/components/reports/topic-study-chart';
+import EventCalendar from '@/components/dashboard/event-calendar';
 
 
 const assignmentFormSchema = z.object({
@@ -603,9 +604,9 @@ function StudentDetailPageContent() {
       <Separator />
 
        <div className='mt-6'>
-       <h2 className="text-2xl font-bold tracking-tight">Haftalık Planlama</h2>
+       <h2 className="text-2xl font-bold tracking-tight">Koçluk Araçları</h2>
         <Separator className="my-4" />
-         <div className="grid grid-cols-1 gap-6">
+         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
            <Card>
             <CardHeader>
               <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
@@ -693,7 +694,18 @@ function StudentDetailPageContent() {
                 </CardFooter>
             )}
            </Card>
-        </div>
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                         <CardTitle className='flex items-center gap-2'><CalendarDays /> Öğrenci Takvimi</CardTitle>
+                         <CardDescription>Öğrencinin takvimine notlar ekleyin veya mevcut planını görüntüleyin.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <EventCalendar student={student} onUpdate={fetchStudentAndSubjects} userRole='admin' />
+                    </CardContent>
+                </Card>
+            </div>
+         </div>
       </div>
 
 
@@ -1083,5 +1095,3 @@ export default function StudentDetailPage() {
         </AppLayout>
     )
 }
-
-    

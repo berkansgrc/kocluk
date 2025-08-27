@@ -1,5 +1,13 @@
 
 
+export interface CalendarEvent {
+    id: string;
+    date: string; // YYYY-MM-DD format
+    title: string;
+    author: 'student' | 'admin';
+    createdAt: any; // Firestore Timestamp
+}
+
 export interface Assignment {
   id: string;
   driveLink: string; 
@@ -73,6 +81,7 @@ export interface Student {
   weeklyPlan?: WeeklyPlanItem[];
   isPlanNew?: boolean;
   unlockedAchievements?: string[];
+  calendarEvents?: CalendarEvent[];
 }
 
 export interface ExamTopicResult {

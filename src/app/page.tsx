@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import type { Student, Assignment } from '@/lib/types';
+import type { Student, Assignment, CalendarEvent } from '@/lib/types';
 import WelcomeHeader from '@/components/dashboard/welcome-header';
 import WeeklyProgress from '@/components/dashboard/weekly-progress';
 import StudySessionForm from '@/components/dashboard/study-session-form';
@@ -22,6 +22,7 @@ import { achievementChecks, allAchievements } from '@/lib/achievements';
 import { Award } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/app-layout';
+import EventCalendar from '@/components/dashboard/event-calendar';
 
 
 function PageContent() {
@@ -88,6 +89,7 @@ function PageContent() {
           resources: data.resources || [],
           weeklyPlan: data.weeklyPlan || [],
           unlockedAchievements: data.unlockedAchievements || [],
+          calendarEvents: data.calendarEvents || [],
         };
         setStudentData(validatedData);
         await checkAndAwardAchievements(validatedData);
@@ -221,6 +223,7 @@ function PageContent() {
           <Separator />
           <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
             <div className="space-y-6">
+               <EventCalendar student={studentData} onUpdate={fetchStudentData} userRole='student'/>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <WeeklyProgress
                   studySessions={studentData.studySessions || []}
