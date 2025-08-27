@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -216,7 +217,6 @@ function PageContent() {
     }
   
     if (studentData) {
-      const weeklyPlan = studentData.weeklyPlan || [];
       return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
           <WelcomeHeader student={studentData} onClearNotifications={clearNotifications} />
@@ -246,42 +246,6 @@ function PageContent() {
               <StudySessionForm studentId={studentData.id} onSessionAdded={handleSessionAdded} />
             </div>
           </div>
-          {weeklyPlan.length > 0 && (
-            <div className="pt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Bu Haftaki Çalışma Planın</CardTitle>
-                  <CardDescription>Koçun tarafından senin için özel olarak hazırlanan yol haritası.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-md border overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Gün</TableHead>
-                          <TableHead>Ders</TableHead>
-                          <TableHead>Konu</TableHead>
-                          <TableHead>Hedef</TableHead>
-                          <TableHead>Koçunun Notu</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {weeklyPlan.map((item, index) => (
-                          <TableRow key={index}>
-                            <TableCell className="font-medium">{item.day}</TableCell>
-                            <TableCell>{item.subject}</TableCell>
-                            <TableCell>{item.topic}</TableCell>
-                            <TableCell>{item.goal}</TableCell>
-                            <TableCell className='text-muted-foreground italic'>{item.reason}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
         </div>
       );
     }

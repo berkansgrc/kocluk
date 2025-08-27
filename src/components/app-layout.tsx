@@ -18,7 +18,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen } from 'lucide-react';
+import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen, ClipboardCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,7 @@ import { ThemeToggle } from './theme-toggle';
 
 const navItems = [
   { href: '/', label: 'Anasayfa', icon: LayoutDashboard, adminOnly: false },
+  { href: '/plan', label: 'Haftalık Planım', icon: ClipboardCheck, adminOnly: false },
   { href: '/reports', label: 'Raporlarım', icon: BarChart3, adminOnly: false },
   { href: '/achievements', label: 'Başarımlarım', icon: Award, adminOnly: false },
   { href: '/resources', label: 'Kaynaklar', icon: BookOpen, adminOnly: false },
