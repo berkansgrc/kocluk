@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   // Buraya kendi alan adınızı eklemeyi unutmayın
-  const baseUrl = 'https://berkan.online'; 
+  const baseUrl = 'https://berkanhoca.online'; 
 
   const staticRoutes = [
     '/',
