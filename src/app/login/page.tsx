@@ -39,7 +39,8 @@ export default function LoginPage() {
   const [animationData, setAnimationData] = useState(null);
 
   useEffect(() => {
-    fetch('https://lottie.host/34caaa3d-834d-4b9f-9d6d-0d4ea8ba269f/xF1VSbNLcn.lottie')
+    // Using the direct JSON version of the animation to avoid parsing errors.
+    fetch('https://lottie.host/e3988a6c-6744-4809-9069-108253161453/Fp83oYyBwd.json')
       .then(response => response.json())
       .then(data => setAnimationData(data))
       .catch(error => console.error('Error fetching Lottie animation:', error));
