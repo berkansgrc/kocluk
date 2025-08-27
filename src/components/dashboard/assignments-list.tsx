@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BookCheck } from 'lucide-react';
+import { BookCheck, FileText } from 'lucide-react';
 import type { Assignment } from '@/lib/types';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +41,11 @@ export default function AssignmentsList({ assignments }: AssignmentsListProps) {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">Henüz atanmış bir ödevin bulunmuyor.</p>
+          <div className="flex flex-col items-center justify-center text-center p-6 text-muted-foreground">
+            <FileText className="w-12 h-12 mb-4" />
+            <p className="font-medium">Henüz atanmış bir ödevin bulunmuyor.</p>
+            <p className="text-sm">Ödevlerin burada listelenecek.</p>
+          </div>
         )}
       </CardContent>
     </Card>

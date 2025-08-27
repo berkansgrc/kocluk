@@ -235,7 +235,7 @@ function DenemeAnaliziContent() {
                     </Card>
                 </div>
                 <div className="lg:col-span-1">
-                    <Card className="min-h-[600px] sticky top-20">
+                    <Card className="min-h-full sticky top-20">
                         <CardHeader>
                             <CardTitle>Yapay Zeka Analiz Sonucu</CardTitle>
                             <CardDescription>Sonuçların burada detaylı bir şekilde gösterilecek.</CardDescription>
@@ -311,5 +311,3 @@ export default function DenemeAnaliziPage() {
         </AppLayout>
     );
 }
-
-    

@@ -297,5 +297,3 @@ export default function StudySessionForm({ studentId, onSessionAdded }: StudySes
     </Card>
   );
 }
-
-    
