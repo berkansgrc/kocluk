@@ -64,6 +64,7 @@ import { generateWeeklyPlan } from '@/ai/flows/weekly-planner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import PerformanceTrendChart from '@/components/reports/performance-trend-chart';
 import { AppLayout } from '@/components/app-layout';
+import TopicStudyChart from '@/components/reports/topic-study-chart';
 
 
 const assignmentFormSchema = z.object({
@@ -1032,20 +1033,29 @@ function StudentDetailPageContent() {
       <div ref={reportRef} className="bg-background p-0 sm:p-4 rounded-lg">
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-5 mt-6 report-card">
             <div className="lg:col-span-3">
-            <SolvedQuestionsChart studySessions={filteredSessions} />
+            <SolvedQuestionsChart studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
             </div>
             <div className="lg:col-span-2">
-            <StudyDurationChart studySessions={filteredSessions} />
+            <StudyDurationChart studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
             </div>
         </div>
         <div className="grid gap-6 mt-6">
+          <Card className='report-card'>
+            <CardHeader>
+              <CardTitle>Konu Tekrarı Analizi</CardTitle>
+              <CardDescription>Öğrencinin konu tekrarlarına harcadığı sürenin dağılımı.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TopicStudyChart studySessions={filteredSessions.filter(s => s.type === 'topic')} />
+            </CardContent>
+          </Card>
           <Card className='report-card'>
             <CardHeader>
               <CardTitle>Ders Performans Trendi</CardTitle>
               <CardDescription>Derslerdeki başarı oranının zaman içindeki değişimini inceleyin.</CardDescription>
             </CardHeader>
             <CardContent>
-              <PerformanceTrendChart studySessions={filteredSessions} />
+              <PerformanceTrendChart studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
             </CardContent>
           </Card>
           <Card className='report-card'>
@@ -1054,7 +1064,7 @@ function StudentDetailPageContent() {
               <CardDescription>Farklı derslerdeki ve konulardaki performansınızı analiz edin.</CardDescription>
             </CardHeader>
             <CardContent>
-              <StrengthWeaknessMatrix studySessions={filteredSessions} />
+              <StrengthWeaknessMatrix studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
             </CardContent>
           </Card>
           <Card className='report-card'>
@@ -1063,7 +1073,7 @@ function StudentDetailPageContent() {
               <CardDescription>Konulara harcadığınız zaman ile o konudaki başarınızı karşılaştırın.</CardDescription>
             </CardHeader>
             <CardContent>
-              <PerformanceEffortMatrix studySessions={filteredSessions} />
+              <PerformanceEffortMatrix studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
             </CardContent>
           </Card>
         </div>
