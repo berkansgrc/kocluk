@@ -8,7 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import Lottie from "lottie-react";
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+
 
 import { Button } from '@/components/ui/button';
 import {
@@ -124,8 +125,10 @@ export default function LoginPage() {
             <div className="absolute right-0 top-1/2 h-full w-full max-w-2xl -translate-y-1/2">
                 <div className="absolute inset-y-0 right-0 z-0 h-full w-full rounded-full bg-primary/5 blur-[80px]"></div>
             </div>
-            <Lottie 
-                path="https://assets10.lottiefiles.com/packages/lf20_gja1r81s.json"
+             <DotLottieReact
+                src="https://lottie.host/34caaa3d-834d-4b9f-9d6d-0d4ea8ba269f/xF1VSbNLcn.lottie"
+                loop
+                autoplay
                 className="relative z-10 h-auto w-full max-w-lg opacity-90"
             />
           </div>
