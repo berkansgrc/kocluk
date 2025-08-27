@@ -1,31 +1,44 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Allow anyone to create a contact submission.
-    // Disallow all other operations.
-    match /contactSubmissions/{docId} {
-      allow create: if true;
-      allow read, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+    // Helper function to check for admin role
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Admins can read/write anything.
-    match /subjects/{docId} {
-      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // Students can read/write their own document
+    match /students/{studentId} {
+       allow read, update, write: if request.auth != null && request.auth.uid == studentId;
     }
     
-    // Students can read their own data, admins can read any student data.
-    // Students can update their own data, admins can update any student data.
+    // Admins can read all student documents
     match /students/{studentId} {
-        allow read, update: if request.auth != null && (request.auth.uid == studentId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-        allow create, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow get, list: if isAdmin();
+    }
+    
+    // Admins can read/write users collection
+    match /users/{userId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Authenticated users can read their own user document
+    match /users/{userId} {
+      allow get: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Admins can create/delete users.
-    // Users can read their own user object.
-    match /users/{userId} {
-        allow read: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-        allow create, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // Admins can read and write all subjects
+    match /subjects/{subjectId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Public write for contact form, admin read for the panel
+    match /contactSubmissions/{submissionId} {
+      allow create: if true;
+      allow read: if isAdmin();
+      allow update, delete: if false;
     }
   }
 }
