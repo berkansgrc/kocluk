@@ -16,6 +16,7 @@ import { Skeleton } from '../ui/skeleton';
 const WORK_MINS = 25;
 const SHORT_BREAK_MINS = 5;
 const LONG_BREAK_MINS = 15;
+const GRADE_LEVELS = ["5", "6", "7", "8", "9", "10", "11", "12", "YKS"];
 
 type TimerMode = 'work' | 'shortBreak' | 'longBreak';
 
@@ -35,6 +36,7 @@ export default function PomodoroTimer({ onWorkSessionComplete, studentId, onSess
   // State for subject/topic selection
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
+  const [selectedGradeLevel, setSelectedGradeLevel] = useState('');
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedTopicId, setSelectedTopicId] = useState('');
 
@@ -64,8 +66,14 @@ export default function PomodoroTimer({ onWorkSessionComplete, studentId, onSess
     fetchSubjects();
   }, [toast]);
   
+  const filteredSubjects = useMemo(() => subjects.filter(s => s.gradeLevel === selectedGradeLevel), [subjects, selectedGradeLevel]);
   const selectedSubject = useMemo(() => subjects.find(s => s.id === selectedSubjectId), [subjects, selectedSubjectId]);
   
+  useEffect(() => {
+    setSelectedSubjectId('');
+    setSelectedTopicId('');
+  }, [selectedGradeLevel]);
+
   useEffect(() => {
     setSelectedTopicId('');
   }, [selectedSubjectId]);
@@ -141,7 +149,7 @@ export default function PomodoroTimer({ onWorkSessionComplete, studentId, onSess
         setSessionsCompleted(newSessionsCompleted);
         const nextMode = newSessionsCompleted % 4 === 0 ? 'longBreak' : 'shortBreak';
         switchMode(nextMode);
-         toast({ title: nextMode === 'longBreak' ? 'Uzun Mola Zamanı!' : 'Kısa Mola Zamanı!', description: 'Harika iş çıkardın, şimdi biraz dinlen.' });
+         toast({ title: nextMode === 'longBreak' ? 'Uzun Mola Zamanı!' : 'Harika iş çıkardın, şimdi biraz dinlen.' });
       } else {
         switchMode('work');
         toast({ title: 'Çalışma Zamanı!', description: 'Mola bitti, hadi devam edelim!' });
@@ -168,7 +176,7 @@ export default function PomodoroTimer({ onWorkSessionComplete, studentId, onSess
     longBreak: { title: 'Uzun Mola', icon: <Coffee className="w-6 h-6" />, color: 'text-sky-500' },
   };
 
-  const isStartDisabled = mode === 'work' && (!selectedSubjectId || !selectedTopicId);
+  const isStartDisabled = mode === 'work' && (!selectedGradeLevel || !selectedSubjectId || !selectedTopicId);
 
   return (
     <Card>
@@ -184,18 +192,26 @@ export default function PomodoroTimer({ onWorkSessionComplete, studentId, onSess
         </div>
         
         {mode === 'work' && (
-          <div className='w-full max-w-md p-4 border rounded-lg bg-muted/20 space-y-4'>
+          <div className='w-full max-w-lg p-4 border rounded-lg bg-muted/20 space-y-4'>
              <h4 className='text-sm font-medium text-center text-muted-foreground'>Bu seansta neye odaklanacaksın?</h4>
              {loadingSubjects ? <Skeleton className='h-10 w-full' /> : (
-              <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
-                  <SelectTrigger><SelectValue placeholder="Ders Seç" /></SelectTrigger>
+              <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
+                <Select value={selectedGradeLevel} onValueChange={setSelectedGradeLevel}>
+                  <SelectTrigger><SelectValue placeholder="Sınıf Seç" /></SelectTrigger>
                   <SelectContent>
-                    {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    {GRADE_LEVELS.map(level => (
+                        <SelectItem key={level} value={level}>{level === 'YKS' ? 'YKS' : `${level}. Sınıf`}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId} disabled={!selectedGradeLevel}>
+                  <SelectTrigger><SelectValue placeholder={!selectedGradeLevel ? "Önce Sınıf Seç" : "Ders Seç"} /></SelectTrigger>
+                  <SelectContent>
+                    {filteredSubjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
                  <Select value={selectedTopicId} onValueChange={setSelectedTopicId} disabled={!selectedSubject}>
-                  <SelectTrigger><SelectValue placeholder={!selectedSubject ? "Önce ders seç" : "Konu Seç"} /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={!selectedSubject ? "Önce Ders Seç" : "Konu Seç"} /></SelectTrigger>
                   <SelectContent>
                     {selectedSubject?.topics.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                   </SelectContent>
@@ -247,7 +263,7 @@ export default function PomodoroTimer({ onWorkSessionComplete, studentId, onSess
       </CardContent>
       <CardFooter className='flex-col items-center justify-center pt-4 border-t'>
          <p className="text-sm text-muted-foreground">Tamamlanan seans: {sessionsCompleted}</p>
-         {isStartDisabled && <p className='text-xs text-destructive text-center mt-2'>Çalışma seansını başlatmak için lütfen bir ders ve konu seçin.</p>}
+         {isStartDisabled && <p className='text-xs text-destructive text-center mt-2'>Çalışma seansını başlatmak için lütfen sınıf, ders ve konu seçin.</p>}
       </CardFooter>
     </Card>
   );
