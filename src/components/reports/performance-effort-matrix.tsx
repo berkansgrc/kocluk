@@ -13,6 +13,7 @@ import {
   Cell,
   ReferenceLine,
   Label,
+  CartesianGrid,
 } from 'recharts';
 import type { StudySession } from '@/lib/types';
 
