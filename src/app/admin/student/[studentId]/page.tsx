@@ -265,6 +265,11 @@ function StudentDetailPageContent() {
     }
     setCurrentDate(newDate);
   };
+  
+  const dailyGoal = useMemo(() => {
+    if (!student || !student.weeklyQuestionGoal) return 0;
+    return Math.round(student.weeklyQuestionGoal / 7);
+  }, [student]);
 
   const handleAssignmentSubmit = async (values: z.infer<typeof assignmentFormSchema>) => {
     if (!student) return;
@@ -998,7 +1003,10 @@ function StudentDetailPageContent() {
       <div ref={reportRef} className="bg-background p-0 sm:p-4 rounded-lg">
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-5 mt-6 report-card">
             <div className="lg:col-span-3">
-            <SolvedQuestionsChart studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
+              <SolvedQuestionsChart 
+                studySessions={filteredSessions.filter(s => s.type !== 'topic')} 
+                dailyGoal={dailyGoal}
+              />
             </div>
             <div className="lg:col-span-2">
             <StudyDurationChart studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
@@ -1144,5 +1152,3 @@ export default function StudentDetailPage() {
         </AppLayout>
     )
 }
-
-    

@@ -147,6 +147,12 @@ function ReportsPageContent() {
     setCurrentDate(newDate);
   };
 
+  const dailyGoal = useMemo(() => {
+    if (!studentData || !studentData.weeklyQuestionGoal) return 0;
+    return Math.round(studentData.weeklyQuestionGoal / 7);
+  }, [studentData]);
+
+
   if (loading || authLoading) {
     return (
        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -203,7 +209,10 @@ function ReportsPageContent() {
        </div>
 
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mt-6">
-        <SolvedQuestionsChart studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
+        <SolvedQuestionsChart 
+          studySessions={filteredSessions.filter(s => s.type !== 'topic')} 
+          dailyGoal={dailyGoal}
+        />
         <StudyDurationChart studySessions={filteredSessions.filter(s => s.type !== 'topic')} />
       </div>
       <div className="grid gap-6 mt-6">
