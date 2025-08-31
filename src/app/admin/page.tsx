@@ -23,7 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { AreaChart, BadgePercent, GraduationCap, Trash2, UserPlus, Users } from 'lucide-react';
+import { AreaChart, BadgePercent, GraduationCap, Trash2, UserPlus, Users, Eye, ArrowUpDown } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import {
   doc,
@@ -57,6 +57,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { startOfWeek, isAfter, fromUnixTime } from 'date-fns';
 import { AppLayout } from '@/components/app-layout';
+import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 
 const studentFormSchema = z.object({
@@ -68,6 +71,8 @@ const studentFormSchema = z.object({
   className: z.string().optional(),
 });
 
+type SortableField = 'name' | 'className' | 'totalSolved' | 'averageAccuracy' | 'totalDuration';
+
 function AdminPageContent() {
   const { toast } = useToast();
   const [students, setStudents] = useState<Student[]>([]);
@@ -75,6 +80,11 @@ function AdminPageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const router = useRouter();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [classFilter, setClassFilter] = useState('all');
+  const [sortConfig, setSortConfig] = useState<{ key: SortableField; direction: 'asc' | 'desc' } | null>({ key: 'name', direction: 'asc'});
+
 
   const studentForm = useForm<z.infer<typeof studentFormSchema>>({
     resolver: zodResolver(studentFormSchema),
@@ -242,6 +252,56 @@ function AdminPageContent() {
     return { totalSolved, averageAccuracy, totalDuration };
   };
 
+  const classNames = useMemo(() => ['all', ...Array.from(new Set(students.map(s => s.className).filter(Boolean)))], [students]);
+
+  const filteredAndSortedStudents = useMemo(() => {
+    let result = students.map(s => ({...s, ...getStudentStats(s)}));
+
+    // Filtering
+    if (searchTerm) {
+      result = result.filter(s => 
+        s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        s.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    if (classFilter !== 'all') {
+      result = result.filter(s => s.className === classFilter);
+    }
+
+    // Sorting
+    if (sortConfig) {
+      result.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return result;
+  }, [students, searchTerm, classFilter, sortConfig]);
+
+  const requestSort = (key: SortableField) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+  
+  const SortableHeader = ({ sortKey, label, className }: { sortKey: SortableField, label: string, className?: string }) => (
+     <TableHead className={className}>
+        <Button variant="ghost" onClick={() => requestSort(sortKey)}>
+            {label}
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+     </TableHead>
+  )
+
+
   const handleRowClick = (studentId: string) => {
     router.push(`/admin/student/${studentId}`);
   };
@@ -378,9 +438,26 @@ function AdminPageContent() {
                 </CardTitle>
                 <CardDescription>
                   Sistemde kayıtlı olan tüm öğrencilerin listesi ve durumları.
-                  Detaylar için bir öğrenciye tıklayın.
                 </CardDescription>
               </div>
+            </div>
+             <div className="flex items-center gap-4 mt-4">
+                <Input 
+                    placeholder="İsim veya e-posta ile ara..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                />
+                <Select value={classFilter} onValueChange={setClassFilter}>
+                    <SelectTrigger className='w-[180px]'>
+                        <SelectValue placeholder="Sınıfa göre filtrele" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {classNames.map(name => (
+                            <SelectItem key={name} value={name}>{name === 'all' ? 'Tüm Sınıflar' : name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
           </CardHeader>
           <CardContent>
@@ -388,16 +465,12 @@ function AdminPageContent() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>İsim Soyisim</TableHead>
+                    <SortableHeader sortKey='name' label='İsim Soyisim' />
                     <TableHead className="hidden md:table-cell">E-posta</TableHead>
-                    <TableHead className="hidden sm:table-cell">Sınıf</TableHead>
-                    <TableHead className="text-right hidden lg:table-cell">
-                      Toplam Çözülen
-                    </TableHead>
-                    <TableHead className="text-right hidden lg:table-cell">Ortalama Başarı</TableHead>
-                    <TableHead className="text-right hidden lg:table-cell">
-                      Toplam Süre (dk)
-                    </TableHead>
+                    <SortableHeader sortKey='className' label='Sınıf' className='hidden sm:table-cell'/>
+                    <SortableHeader sortKey='totalSolved' label='Toplam Çözülen' className='text-right hidden lg:table-cell'/>
+                    <SortableHeader sortKey='averageAccuracy' label='Ort. Başarı' className='text-right hidden lg:table-cell'/>
+                    <SortableHeader sortKey='totalDuration' label='Toplam Süre (dk)' className='text-right hidden lg:table-cell'/>
                     <TableHead className="text-right">İşlemler</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -408,21 +481,16 @@ function AdminPageContent() {
                         Yükleniyor...
                       </TableCell>
                     </TableRow>
-                  ) : students.length === 0 ? (
+                  ) : filteredAndSortedStudents.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center">
-                        Kayıtlı öğrenci bulunamadı.
+                        Sonuç bulunamadı.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    students.map((student) => {
-                      const stats = getStudentStats(student);
+                    filteredAndSortedStudents.map((student) => {
                       return (
-                        <TableRow
-                          key={student.id}
-                          className="cursor-pointer"
-                          onClick={() => handleRowClick(student.id)}
-                        >
+                        <TableRow key={student.id}>
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
                               <span>{student.name}</span>
@@ -436,22 +504,36 @@ function AdminPageContent() {
                             {student.className || '-'}
                           </TableCell>
                           <TableCell className="text-right hidden lg:table-cell">
-                            {stats.totalSolved}
+                            {student.totalSolved}
                           </TableCell>
                           <TableCell className="text-right hidden lg:table-cell">
-                            {stats.averageAccuracy.toFixed(1)}%
+                             <Badge
+                                className={cn("text-xs font-semibold", {
+                                'bg-emerald-100 text-emerald-800 hover:bg-emerald-200': student.averageAccuracy >= 90,
+                                'bg-red-100 text-red-800 hover:bg-red-200': student.averageAccuracy < 70,
+                                })}
+                                variant={student.averageAccuracy >= 70 && student.averageAccuracy < 90 ? 'secondary' : 'default'}
+                            >
+                                {student.averageAccuracy.toFixed(1)}%
+                            </Badge>
                           </TableCell>
                            <TableCell className="text-right hidden lg:table-cell">
-                            {stats.totalDuration}
+                            {student.totalDuration}
                           </TableCell>
                           <TableCell className="text-right">
+                             <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRowClick(student.id)}
+                            >
+                                <Eye className="h-4 w-4" />
+                            </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   disabled={isDeleting === student.id}
-                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
@@ -470,15 +552,13 @@ function AdminPageContent() {
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel  onClick={(e) => e.stopPropagation()}>İptal</AlertDialogCancel>
+                                  <AlertDialogCancel>İptal</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteStudent(
+                                    onClick={() => handleDeleteStudent(
                                         student.id,
                                         student.name
                                       )
-                                    }}
+                                    }
                                   >
                                     Sil
                                   </AlertDialogAction>
@@ -508,3 +588,5 @@ export default function AdminPage() {
         </AppLayout>
     )
 }
+
+    
