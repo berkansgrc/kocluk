@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as z from 'zod';
@@ -5,6 +6,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -351,3 +353,5 @@ export default function AdminPage() {
         </AppLayout>
     )
 }
+
+    
