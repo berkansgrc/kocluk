@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, fromUnixTime } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import type { Student, StudySession } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/app-layout';
@@ -29,7 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUpDown, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { startOfWeek, isAfter } from 'date-fns';
+import { startOfWeek, isAfter, fromUnixTime } from 'date-fns';
 
 type SortableKeys = 'name' | 'email' | 'className' | 'avgAccuracy' | 'questionsThisWeek';
 type SortDirection = 'asc' | 'desc';
