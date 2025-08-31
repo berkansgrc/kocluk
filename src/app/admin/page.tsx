@@ -1,9 +1,6 @@
-
 'use client';
 
 import * as z from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Card,
   CardContent,
@@ -23,7 +20,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { AreaChart, BadgePercent, GraduationCap, Trash2, UserPlus, Users, Eye, ArrowUpDown } from 'lucide-react';
+import { AreaChart, ArrowDown, ArrowUp, BarChart3, Bell, Book, BrainCircuit, CheckCircle, Flame, TrendingDown, TrendingUp, UserPlus, Users, Eye, ArrowUpDown, XCircle } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import {
   doc,
@@ -34,7 +31,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import type { Student } from '@/lib/types';
+import type { Student, StudySession } from '@/lib/types';
 import {
   Table,
   TableBody,
@@ -55,46 +52,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { startOfWeek, isAfter, fromUnixTime } from 'date-fns';
+import { startOfWeek, isAfter, fromUnixTime, subDays, startOfDay, isSameDay } from 'date-fns';
 import { AppLayout } from '@/components/app-layout';
 import { cn } from '@/lib/utils';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
-
-const studentFormSchema = z.object({
-  name: z.string().min(2, { message: 'İsim en az 2 karakter olmalıdır.' }),
-  email: z
-    .string()
-    .email({ message: 'Lütfen geçerli bir e-posta adresi girin.' }),
-  password: z.string().min(6, { message: 'Şifre en az 6 karakter olmalıdır.' }),
-  className: z.string().optional(),
-});
-
-type SortableField = 'name' | 'className' | 'totalSolved' | 'averageAccuracy' | 'totalDuration';
 
 function AdminPageContent() {
   const { toast } = useToast();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const router = useRouter();
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [classFilter, setClassFilter] = useState('all');
-  const [sortConfig, setSortConfig] = useState<{ key: SortableField; direction: 'asc' | 'desc' } | null>({ key: 'name', direction: 'asc'});
-
-
-  const studentForm = useForm<z.infer<typeof studentFormSchema>>({
-    resolver: zodResolver(studentFormSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      password: '',
-      className: '',
-    },
-  });
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
@@ -121,460 +89,255 @@ function AdminPageContent() {
     fetchStudents();
   }, [fetchStudents]);
 
-  const dashboardStats = useMemo(() => {
-    const totalStudents = students.length;
-    let totalQuestionsSolved = 0;
-    let totalQuestionsCorrect = 0;
-    let totalQuestionsThisWeek = 0;
+ const dashboardStats = useMemo(() => {
+    const now = new Date();
+    const today = startOfDay(now);
+    const yesterday = startOfDay(subDays(now, 1));
+    const startOfThisWeek = startOfWeek(now, { weekStartsOn: 1 });
+    const startOfLastWeek = startOfWeek(subDays(now, 7), { weekStartsOn: 1 });
+    const endOfLastWeek = subDays(startOfThisWeek, 1);
 
-    const startOfThisWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
+    let activeThisWeek = new Set<string>();
+    let activeLastWeek = new Set<string>();
+    let solvedToday = 0;
+    let solvedYesterday = 0;
+    let totalCorrect = 0;
+    let totalSolved = 0;
+
+    const topicStats: { [key: string]: { correct: number, solved: number } } = {};
+    const groupStats: { [key: string]: { correct: number, solved: number, students: Set<string> } } = {};
 
     students.forEach(student => {
       (student.studySessions || []).forEach(session => {
-        totalQuestionsSolved += session.questionsSolved;
-        totalQuestionsCorrect += session.questionsCorrect;
-        
         const sessionDate = session.date && typeof session.date.seconds === 'number'
           ? fromUnixTime(session.date.seconds)
           : new Date(session.date);
         
-        if (isAfter(sessionDate, startOfThisWeek)) {
-          totalQuestionsThisWeek += session.questionsSolved;
+        if (!(sessionDate instanceof Date && !isNaN(sessionDate.valueOf()))) return;
+
+        // KPI Calcs
+        if (isAfter(sessionDate, startOfThisWeek)) activeThisWeek.add(student.id);
+        if (isAfter(sessionDate, startOfLastWeek) && sessionDate <= endOfLastWeek) activeLastWeek.add(student.id);
+        if (isSameDay(sessionDate, today)) solvedToday += session.questionsSolved;
+        if (isSameDay(sessionDate, yesterday)) solvedYesterday += session.questionsSolved;
+
+        totalCorrect += session.questionsCorrect;
+        totalSolved += session.questionsSolved;
+
+        // Agenda Calcs
+        const group = student.className?.split('-')[0] || 'Diğer';
+        if (!groupStats[group]) groupStats[group] = { correct: 0, solved: 0, students: new Set() };
+        groupStats[group].correct += session.questionsCorrect;
+        groupStats[group].solved += session.questionsSolved;
+        groupStats[group].students.add(student.id);
+
+        if (session.type !== 'topic') {
+            const topicKey = `${session.subject} - ${session.topic}`;
+            if (!topicStats[topicKey]) topicStats[topicKey] = { correct: 0, solved: 0 };
+            topicStats[topicKey].correct += session.questionsCorrect;
+            topicStats[topicKey].solved += session.questionsSolved;
         }
       });
     });
 
-    const overallAccuracy = totalQuestionsSolved > 0 ? (totalQuestionsCorrect / totalQuestionsSolved) * 100 : 0;
+    // Attention Students Calcs
+    const attentionStudents = {
+        performanceDrop: [] as { name: string, className: string, change: number, id: string }[],
+        inactive: [] as { name: string, className: string, lastActive: number, id: string }[],
+    };
+
+    students.forEach(student => {
+        let solvedLast7 = 0, correctLast7 = 0;
+        let solvedPrev7 = 0, correctPrev7 = 0;
+        let lastActivityDay = -Infinity;
+
+        (student.studySessions || []).forEach(session => {
+            const sessionDate = session.date?.seconds ? fromUnixTime(session.date.seconds) : new Date(session.date);
+            if (!(sessionDate instanceof Date && !isNaN(sessionDate.valueOf()))) return;
+            const daysAgo = (today.getTime() - startOfDay(sessionDate).getTime()) / (1000 * 3600 * 24);
+            if (daysAgo < 7) {
+                solvedLast7 += session.questionsSolved;
+                correctLast7 += session.questionsCorrect;
+            } else if (daysAgo < 14) {
+                solvedPrev7 += session.questionsSolved;
+                correctPrev7 += session.questionsCorrect;
+            }
+            if (daysAgo > lastActivityDay) lastActivityDay = daysAgo;
+        });
+
+        if (lastActivityDay > 7 && lastActivityDay !== Infinity) {
+            attentionStudents.inactive.push({ name: student.name, className: student.className || 'N/A', lastActive: Math.floor(lastActivityDay), id: student.id });
+        }
+
+        const accuracyLast7 = solvedLast7 > 10 ? (correctLast7 / solvedLast7) * 100 : -1;
+        const accuracyPrev7 = solvedPrev7 > 10 ? (correctPrev7 / solvedPrev7) * 100 : -1;
+
+        if (accuracyLast7 !== -1 && accuracyPrev7 !== -1) {
+            const change = accuracyLast7 - accuracyPrev7;
+            if (change < -10) { // 10% or more drop
+                attentionStudents.performanceDrop.push({ name: student.name, className: student.className || 'N/A', change, id: student.id });
+            }
+        }
+    });
+
+    attentionStudents.performanceDrop.sort((a, b) => a.change - b.change);
+    attentionStudents.inactive.sort((a, b) => b.lastActive - a.lastActive);
+    
+    // Agenda Calcs
+    const groupPerformance = Object.entries(groupStats).map(([name, data]) => ({
+        name,
+        accuracy: data.solved > 0 ? (data.correct / data.solved) * 100 : 0
+    })).filter(g => g.accuracy > 0);
+
+    const mostSuccessfulGroup = groupPerformance.length > 0 ? groupPerformance.reduce((max, g) => g.accuracy > max.accuracy ? g : max) : null;
+    const leastSuccessfulGroup = groupPerformance.length > 0 ? groupPerformance.reduce((min, g) => g.accuracy < min.accuracy ? g : min) : null;
+    
+    const challengingTopics = Object.entries(topicStats)
+      .filter(([_, data]) => data.solved > 20) // at least 20 questions
+      .map(([name, data]) => ({ name, accuracy: (data.correct / data.solved) * 100 }))
+      .sort((a,b) => a.accuracy - b.accuracy);
+      
+    const mostChallengingTopic = challengingTopics.length > 0 ? challengingTopics[0] : null;
 
     return {
-      totalStudents,
-      totalQuestionsThisWeek,
-      overallAccuracy
+        activeStudents: { count: activeThisWeek.size, change: activeThisWeek.size - activeLastWeek.size },
+        questionsToday: { count: solvedToday, change: solvedToday - solvedYesterday },
+        overallAccuracy: { percentage: totalSolved > 0 ? (totalCorrect / totalSolved) * 100 : 0 },
+        attentionStudents,
+        weeklyAgenda: {
+            mostSuccessfulGroup,
+            leastSuccessfulGroup,
+            mostChallengingTopic,
+        }
     };
   }, [students]);
 
-  async function onStudentSubmit(values: z.infer<typeof studentFormSchema>) {
-    setIsSubmitting(true);
-    let studentUser;
-  
-    try {
-      const { initializeApp, deleteApp } = await import('firebase/app');
-      const { getAuth, createUserWithEmailAndPassword } = await import('firebase/auth');
-      
-      const tempAppName = `student-auth-${Date.now()}`;
-      const tempApp = initializeApp(auth.app.options, tempAppName);
-      const tempAuth = getAuth(tempApp);
-      
-      const studentUserCredential = await createUserWithEmailAndPassword(tempAuth, values.email, values.password);
-      studentUser = studentUserCredential.user;
-      await deleteApp(tempApp);
-
-      const batch = writeBatch(db);
-
-      const studentDocRef = doc(db, 'students', studentUser.uid);
-      batch.set(studentDocRef, {
-        name: values.name,
-        email: values.email,
-        className: values.className || '',
-        weeklyQuestionGoal: 100,
-        studySessions: [],
-        assignments: [],
-      });
-
-      const studentUserDocRef = doc(db, 'users', studentUser.uid);
-      batch.set(studentUserDocRef, {
-        uid: studentUser.uid,
-        email: values.email,
-        role: 'student',
-      });
-
-      await batch.commit();
-  
-      toast({
-        title: 'Öğrenci Eklendi!',
-        description: `${values.name} başarıyla oluşturuldu.`,
-      });
-  
-      studentForm.reset();
-      fetchStudents();
-  
-    } catch (error: any) {
-      console.error('Öğrenci eklenirken hata: ', error);
-      let errorMessage = 'Kullanıcı oluşturulurken bir sorun oluştu.';
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'Bu e-posta adresi zaten başka bir hesap tarafından kullanılıyor.';
-      }
-      toast({
-        title: 'Hata',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  const handleDeleteStudent = async (studentId: string, studentName: string) => {
-    setIsDeleting(studentId);
-    try {
-      await deleteDoc(doc(db, 'students', studentId));
-      await deleteDoc(doc(db, 'users', studentId));
-      
-      toast({
-        title: 'Öğrenci Silindi',
-        description: `${studentName} adlı öğrencinin tüm verileri başarıyla silindi. Lütfen Firebase Authentication'dan da kullanıcıyı manuel olarak silmeyi unutmayın.`,
-      });
-      fetchStudents(); 
-    } catch (error) {
-      console.error('Öğrenci silinirken hata:', error);
-      toast({
-        title: 'Hata',
-        description: 'Öğrenci silinirken bir sorun oluştu.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsDeleting(null);
-    }
-  };
-
-  const getStudentStats = (student: Student) => {
-    const totalSolved =
-      student.studySessions?.reduce((acc, s) => acc + s.questionsSolved, 0) ||
-      0;
-    const totalCorrect =
-      student.studySessions?.reduce((acc, s) => acc + s.questionsCorrect, 0) ||
-      0;
-    const totalDuration =
-      student.studySessions?.reduce((acc, s) => acc + s.durationInMinutes, 0) ||
-      0;
-    const averageAccuracy =
-      totalSolved > 0 ? (totalCorrect / totalSolved) * 100 : 0;
-    return { totalSolved, averageAccuracy, totalDuration };
-  };
-
-  const classNames = useMemo(() => ['all', ...Array.from(new Set(students.map(s => s.className).filter(Boolean)))], [students]);
-
-  const filteredAndSortedStudents = useMemo(() => {
-    let result = students.map(s => ({...s, ...getStudentStats(s)}));
-
-    // Filtering
-    if (searchTerm) {
-      result = result.filter(s => 
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        s.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    if (classFilter !== 'all') {
-      result = result.filter(s => s.className === classFilter);
-    }
-
-    // Sorting
-    if (sortConfig) {
-      result.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-
-    return result;
-  }, [students, searchTerm, classFilter, sortConfig]);
-
-  const requestSort = (key: SortableField) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
-  
-  const SortableHeader = ({ sortKey, label, className }: { sortKey: SortableField, label: string, className?: string }) => (
-     <TableHead className={className}>
-        <Button variant="ghost" onClick={() => requestSort(sortKey)}>
-            {label}
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-     </TableHead>
-  )
-
-
-  const handleRowClick = (studentId: string) => {
-    router.push(`/admin/student/${studentId}`);
-  };
+  const KPICard = ({ title, value, change }: { title: string, value: string, change: number }) => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base font-medium text-muted-foreground">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-3xl font-bold">{value}</div>
+        <div className={cn("flex items-center text-sm mt-1", change >= 0 ? "text-emerald-500" : "text-red-500")}>
+            {change !== 0 && (change > 0 ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />)}
+            <span className="ml-1">
+                {change > 0 && `+${change}`}
+                {change < 0 && change}
+                {change === 0 && 'Değişim Yok'}
+            </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">
-            Admin Paneli
+            Yönetici Paneli
           </h1>
           <p className="text-muted-foreground">
-            Uygulama verilerini ve genel istatistikleri yönetin.
+            Platformun genel durumu ve eyleme yönelik özetler.
           </p>
         </div>
       </div>
-      <Separator />
-
+      
+      {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <KPICard title="Aktif Öğrenci (Bu Hafta)" value={dashboardStats.activeStudents.count.toString()} change={dashboardStats.activeStudents.change} />
+        <KPICard title="Çözülen Soru (Bugün)" value={dashboardStats.questionsToday.count.toLocaleString()} change={dashboardStats.questionsToday.count - dashboardStats.questionsToday.change} />
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Toplam Öğrenci
-            </CardTitle>
-            <GraduationCap className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
+          <CardHeader><CardTitle className="text-base font-medium text-muted-foreground">Genel Başarı Ortalaması</CardTitle></CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardStats.totalStudents}</div>
-            <p className="text-xs text-muted-foreground">
-              Sistemde kayıtlı aktif öğrenci sayısı
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Haftalık Çözülen Soru
-            </CardTitle>
-            <AreaChart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardStats.totalQuestionsThisWeek}</div>
-             <p className="text-xs text-muted-foreground">
-              Tüm öğrencilerin bu hafta çözdüğü toplam soru
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Genel Başarı Ortalaması</CardTitle>
-            <BadgePercent className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {dashboardStats.overallAccuracy.toFixed(1)}%
-            </div>
-             <p className="text-xs text-muted-foreground">
-              Tüm öğrencilerin genel başarı ortalaması
-            </p>
+             <div className="text-3xl font-bold">{dashboardStats.overallAccuracy.percentage.toFixed(1)}%</div>
+             <p className='text-sm mt-1 text-muted-foreground'>Tüm zamanların ortalaması</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 mt-6">
+      {/* Action-Oriented Modules */}
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus /> Yeni Öğrenci Ekle
-            </CardTitle>
-            <CardDescription>
-              Sisteme yeni bir öğrenci hesabı kaydedin.
-            </CardDescription>
+            <CardTitle className="flex items-center gap-2"><Bell className="text-amber-500" /> Dikkat Gerektiren Öğrenciler</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Form {...studentForm}>
-              <form
-                onSubmit={studentForm.handleSubmit(onStudentSubmit)}
-                className="space-y-6"
-              >
-                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-                    <FormField control={studentForm.control} name="name" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>İsim Soyisim</FormLabel>
-                        <FormControl><Input placeholder="Örn. Ahmet Yılmaz" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}/>
-                    <FormField control={studentForm.control} name="className" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sınıf</FormLabel>
-                        <FormControl><Input placeholder="Örn. 8-A (İsteğe Bağlı)" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}/>
-                    <FormField control={studentForm.control} name="email" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>E-posta Adresi</FormLabel>
-                        <FormControl><Input placeholder="ogrenci@eposta.com" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}/>
-                    <FormField control={studentForm.control} name="password" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Başlangıç Şifresi</FormLabel>
-                        <FormControl><Input type="password" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}/>
-                </div>
-                
-                <Button
-                  type="submit"
-                  className="w-full sm:w-auto"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    'Ekleniyor...'
-                  ) : (
-                    <>
-                      <UserPlus className="mr-2 h-4 w-4" /> Öğrenciyi Ekle
-                    </>
-                  )}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Users /> Kayıtlı Öğrenciler
-                </CardTitle>
-                <CardDescription>
-                  Sistemde kayıtlı olan tüm öğrencilerin listesi ve durumları.
-                </CardDescription>
-              </div>
-            </div>
-             <div className="flex items-center gap-4 mt-4">
-                <Input 
-                    placeholder="İsim veya e-posta ile ara..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="max-w-sm"
-                />
-                <Select value={classFilter} onValueChange={setClassFilter}>
-                    <SelectTrigger className='w-[180px]'>
-                        <SelectValue placeholder="Sınıfa göre filtrele" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {classNames.map(name => (
-                            <SelectItem key={name} value={name}>{name === 'all' ? 'Tüm Sınıflar' : name}</SelectItem>
+          <CardContent className="space-y-6">
+            <div>
+                <h4 className="font-semibold flex items-center gap-2 mb-2"><TrendingDown className="text-destructive"/> Performansı Düşenler</h4>
+                {dashboardStats.attentionStudents.performanceDrop.length > 0 ? (
+                    <ul className="space-y-2">
+                        {dashboardStats.attentionStudents.performanceDrop.slice(0,3).map(s => (
+                            <li key={s.id} className="text-sm flex justify-between items-center p-2 bg-muted/50 rounded-md">
+                                <span>{s.name} <span className="text-muted-foreground">({s.className})</span></span>
+                                <span className='text-destructive font-medium'>{s.change.toFixed(0)}% düşüş</span>
+                            </li>
                         ))}
-                    </SelectContent>
-                </Select>
+                    </ul>
+                ) : <p className="text-sm text-muted-foreground">Kayda değer bir performans düşüşü yok. Harika!</p>}
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <SortableHeader sortKey='name' label='İsim Soyisim' />
-                    <TableHead className="hidden md:table-cell">E-posta</TableHead>
-                    <SortableHeader sortKey='className' label='Sınıf' className='hidden sm:table-cell'/>
-                    <SortableHeader sortKey='totalSolved' label='Toplam Çözülen' className='text-right hidden lg:table-cell'/>
-                    <SortableHeader sortKey='averageAccuracy' label='Ort. Başarı' className='text-right hidden lg:table-cell'/>
-                    <SortableHeader sortKey='totalDuration' label='Toplam Süre (dk)' className='text-right hidden lg:table-cell'/>
-                    <TableHead className="text-right">İşlemler</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center">
-                        Yükleniyor...
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredAndSortedStudents.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center">
-                        Sonuç bulunamadı.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredAndSortedStudents.map((student) => {
-                      return (
-                        <TableRow key={student.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex flex-col">
-                              <span>{student.name}</span>
-                              <span className="text-muted-foreground text-sm md:hidden">{student.email}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            {student.email}
-                          </TableCell>
-                           <TableCell className="hidden sm:table-cell">
-                            {student.className || '-'}
-                          </TableCell>
-                          <TableCell className="text-right hidden lg:table-cell">
-                            {student.totalSolved}
-                          </TableCell>
-                          <TableCell className="text-right hidden lg:table-cell">
-                             <Badge
-                                className={cn("text-xs font-semibold", {
-                                'bg-emerald-100 text-emerald-800 hover:bg-emerald-200': student.averageAccuracy >= 90,
-                                'bg-red-100 text-red-800 hover:bg-red-200': student.averageAccuracy < 70,
-                                })}
-                                variant={student.averageAccuracy >= 70 && student.averageAccuracy < 90 ? 'secondary' : 'default'}
-                            >
-                                {student.averageAccuracy.toFixed(1)}%
-                            </Badge>
-                          </TableCell>
-                           <TableCell className="text-right hidden lg:table-cell">
-                            {student.totalDuration}
-                          </TableCell>
-                          <TableCell className="text-right">
-                             <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRowClick(student.id)}
-                            >
-                                <Eye className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  disabled={isDeleting === student.id}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Emin misiniz?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Bu işlem geri alınamaz. Bu, {student.name}{' '}
-                                    adlı öğrencinin verilerini sunucularımızdan
-                                    kalıcı olarak silecektir. Bu işlem kullanıcıyı 
-                                    Firebase Authentication'dan silmez,
-                                    oradan manuel olarak silmeniz gerekir.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>İptal</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteStudent(
-                                        student.id,
-                                        student.name
-                                      )
-                                    }
-                                  >
-                                    Sil
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
+            <Separator />
+             <div>
+                <h4 className="font-semibold flex items-center gap-2 mb-2"><XCircle className="text-destructive"/> Uzun Süredir Aktif Olmayanlar</h4>
+                 {dashboardStats.attentionStudents.inactive.length > 0 ? (
+                    <ul className="space-y-2">
+                        {dashboardStats.attentionStudents.inactive.slice(0,3).map(s => (
+                            <li key={s.id} className="text-sm flex justify-between items-center p-2 bg-muted/50 rounded-md">
+                                <span>{s.name} <span className="text-muted-foreground">({s.className})</span></span>
+                                <span className='text-destructive font-medium'>{s.lastActive} gündür pasif</span>
+                            </li>
+                        ))}
+                         {dashboardStats.attentionStudents.inactive.length > 3 && (
+                            <p className='text-xs text-center text-muted-foreground mt-2'>...ve {dashboardStats.attentionStudents.inactive.length - 3} diğer öğrenci</p>
+                        )}
+                    </ul>
+                ) : <p className="text-sm text-muted-foreground">Herkes aktif görünüyor. Çok iyi!</p>}
             </div>
           </CardContent>
+          <CardFooter>
+             <Button variant="secondary" className="w-full" asChild><Link href="/admin/students">Tüm Öğrenci Listesini Görüntüle →</Link></Button>
+          </CardFooter>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><BarChart3 className="text-primary" /> Haftanın Gündemi</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+             <div className="flex items-center gap-4 p-3 bg-emerald-500/10 rounded-lg">
+                <div className="p-2 bg-emerald-500/20 rounded-full"><TrendingUp className="w-6 h-6 text-emerald-600" /></div>
+                <div>
+                    <p className="text-sm text-muted-foreground">En Başarılı Grup</p>
+                    {dashboardStats.weeklyAgenda.mostSuccessfulGroup ? (
+                        <p className="font-bold text-lg">{dashboardStats.weeklyAgenda.mostSuccessfulGroup.name} <span className='text-emerald-600 font-semibold'>({dashboardStats.weeklyAgenda.mostSuccessfulGroup.accuracy.toFixed(1)}%)</span></p>
+                    ) : <p className="text-sm text-muted-foreground">Veri yok.</p>}
+                </div>
+             </div>
+             <div className="flex items-center gap-4 p-3 bg-red-500/10 rounded-lg">
+                <div className="p-2 bg-red-500/20 rounded-full"><TrendingDown className="w-6 h-6 text-red-600" /></div>
+                <div>
+                    <p className="text-sm text-muted-foreground">Geliştirilmesi Gereken Grup</p>
+                    {dashboardStats.weeklyAgenda.leastSuccessfulGroup ? (
+                        <p className="font-bold text-lg">{dashboardStats.weeklyAgenda.leastSuccessfulGroup.name} <span className='text-red-600 font-semibold'>({dashboardStats.weeklyAgenda.leastSuccessfulGroup.accuracy.toFixed(1)}%)</span></p>
+                    ) : <p className="text-sm text-muted-foreground">Veri yok.</p>}
+                </div>
+             </div>
+              <div className="flex items-center gap-4 p-3 bg-blue-500/10 rounded-lg">
+                <div className="p-2 bg-blue-500/20 rounded-full"><Book className="w-6 h-6 text-blue-600" /></div>
+                <div>
+                    <p className="text-sm text-muted-foreground">En Zorlanılan Konu</p>
+                    {dashboardStats.weeklyAgenda.mostChallengingTopic ? (
+                        <p className="font-bold text-lg">{dashboardStats.weeklyAgenda.mostChallengingTopic.name} <span className='text-blue-600 font-semibold'>({dashboardStats.weeklyAgenda.mostChallengingTopic.accuracy.toFixed(1)}%)</span></p>
+                    ) : <p className="text-sm text-muted-foreground">Veri yok.</p>}
+                </div>
+             </div>
+          </CardContent>
+           <CardFooter>
+             <Button variant="secondary" className="w-full" asChild><Link href="/admin/reports">Detaylı Raporları İncele →</Link></Button>
+          </CardFooter>
+        </Card>
+
       </div>
     </div>
   );
@@ -588,5 +351,3 @@ export default function AdminPage() {
         </AppLayout>
     )
 }
-
-    

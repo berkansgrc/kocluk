@@ -18,7 +18,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen, ClipboardCheck, MailQuestion } from 'lucide-react';
+import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen, ClipboardCheck, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +26,7 @@ import { Skeleton } from './ui/skeleton';
 import { ThemeToggle } from './theme-toggle';
 
 const navItems = [
+  // Student routes
   { href: '/', label: 'Anasayfa', icon: LayoutDashboard, adminOnly: false },
   { href: '/plan', label: 'Haftalık Planım', icon: ClipboardCheck, adminOnly: false },
   { href: '/reports', label: 'Raporlarım', icon: BarChart3, adminOnly: false },
@@ -33,8 +34,12 @@ const navItems = [
   { href: '/resources', label: 'Kaynaklar', icon: BookOpen, adminOnly: false },
   { href: '/zaman-yonetimi', label: 'Zaman Yönetimi', icon: Clock, adminOnly: false },
   { href: '/deneme-analizi', label: 'Deneme Analizi', icon: ClipboardPen, adminOnly: false },
+
+  // Admin routes
   { href: '/admin', label: 'Admin Paneli', icon: Shield, adminOnly: true },
+  { href: '/admin/students', label: 'Öğrenciler', icon: Users, adminOnly: true },
   { href: '/admin/library', label: 'Kütüphane', icon: Library, adminOnly: true },
+  { href: '/admin/reports', label: 'Genel Raporlar', icon: BarChart3, adminOnly: true },
 ];
 
 
