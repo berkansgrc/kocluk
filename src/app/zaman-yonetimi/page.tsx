@@ -5,15 +5,38 @@ import { AppLayout } from '@/components/app-layout';
 import PomodoroTimer from '@/components/zaman-yonetimi/pomodoro-timer';
 import TotalTimeCard from '@/components/zaman-yonetimi/total-time-card';
 import { Separator } from '@/components/ui/separator';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useAuth } from '@/hooks/use-auth';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import type { Student } from '@/lib/types';
 
-const WORK_MINS = 25;
 
 function ZamanYonetimiPageContent() {
+  const { user } = useAuth();
   const [totalPomodoroMinutes, setTotalPomodoroMinutes] = useState(0);
+  const [studentData, setStudentData] = useState<Student | null>(null);
+
+  // We only need the studentId, but fetching student data might be useful for other things later
+  const fetchStudentData = useCallback(async () => {
+    if (!user) return;
+    try {
+      const studentDocRef = doc(db, 'students', user.uid);
+      const studentDocSnap = await getDoc(studentDocRef);
+      if (studentDocSnap.exists()) {
+        setStudentData({ id: studentDocSnap.id, ...studentDocSnap.data() } as Student);
+      }
+    } catch (error) {
+      console.error("Error fetching student data for pomodoro:", error);
+    }
+  }, [user]);
+
+  useState(() => {
+    fetchStudentData();
+  });
 
   const handleWorkSessionComplete = () => {
-    setTotalPomodoroMinutes(prev => prev + WORK_MINS);
+    setTotalPomodoroMinutes(prev => prev + 25); // 25 is the work session duration
   };
 
   return (
@@ -31,7 +54,11 @@ function ZamanYonetimiPageContent() {
       <Separator />
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3 mt-6">
         <div className="lg:col-span-2">
-           <PomodoroTimer onWorkSessionComplete={handleWorkSessionComplete} />
+           <PomodoroTimer 
+            onWorkSessionComplete={handleWorkSessionComplete}
+            studentId={studentData?.id}
+            onSessionAdded={fetchStudentData} // Re-fetch to update dashboard if needed elsewhere
+           />
         </div>
         <div className="lg:col-span-1">
             <TotalTimeCard totalMinutes={totalPomodoroMinutes} />

@@ -1,12 +1,17 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, RotateCcw, Coffee, Book } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { collection, getDocs, doc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { Subject } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '../ui/skeleton';
 
 const WORK_MINS = 25;
 const SHORT_BREAK_MINS = 5;
@@ -16,26 +21,92 @@ type TimerMode = 'work' | 'shortBreak' | 'longBreak';
 
 interface PomodoroTimerProps {
   onWorkSessionComplete: () => void;
+  studentId?: string;
+  onSessionAdded: () => void;
 }
 
-export default function PomodoroTimer({ onWorkSessionComplete }: PomodoroTimerProps) {
+export default function PomodoroTimer({ onWorkSessionComplete, studentId, onSessionAdded }: PomodoroTimerProps) {
   const { toast } = useToast();
   const [mode, setMode] = useState<TimerMode>('work');
   const [timeRemaining, setTimeRemaining] = useState(WORK_MINS * 60);
   const [isActive, setIsActive] = useState(false);
   const [sessionsCompleted, setSessionsCompleted] = useState(0);
 
+  // State for subject/topic selection
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(true);
+  const [selectedSubjectId, setSelectedSubjectId] = useState('');
+  const [selectedTopicId, setSelectedTopicId] = useState('');
+
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-   useEffect(() => {
-    // Audio'yu sadece client tarafında yükle
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       audioRef.current = new Audio('/sounds/notification.mp3');
     }
   }, []);
 
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      setLoadingSubjects(true);
+      try {
+        const querySnapshot = await getDocs(collection(db, 'subjects'));
+        const subjectsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subject));
+        setSubjects(subjectsList);
+      } catch (error) {
+        console.error("Dersler alınırken hata:", error);
+        toast({ title: "Hata", description: "Ders listesi alınamadı.", variant: "destructive" });
+      } finally {
+        setLoadingSubjects(false);
+      }
+    };
+    fetchSubjects();
+  }, [toast]);
+  
+  const selectedSubject = useMemo(() => subjects.find(s => s.id === selectedSubjectId), [subjects, selectedSubjectId]);
+  
+  useEffect(() => {
+    setSelectedTopicId('');
+  }, [selectedSubjectId]);
+
   const playSound = () => {
     audioRef.current?.play().catch(err => console.error("Audio play failed:", err));
+  };
+
+  const saveWorkSession = async () => {
+    if (!studentId || !selectedSubjectId || !selectedTopicId) return;
+
+    const subject = subjects.find(s => s.id === selectedSubjectId);
+    const topic = subject?.topics.find(t => t.id === selectedTopicId);
+
+    if (!subject || !topic) {
+        toast({ title: 'Hata', description: 'Oturum kaydedilemedi, ders veya konu bulunamadı.', variant: 'destructive' });
+        return;
+    }
+
+    const newSession = {
+      id: new Date().toISOString(),
+      date: Timestamp.now(),
+      subject: subject.name,
+      topic: topic.name,
+      durationInMinutes: WORK_MINS,
+      questionsSolved: 0,
+      questionsCorrect: 0,
+      type: 'topic' as const,
+    };
+
+    try {
+        const studentDocRef = doc(db, 'students', studentId);
+        await updateDoc(studentDocRef, {
+            studySessions: arrayUnion(newSession)
+        });
+        toast({ title: 'Oturum Kaydedildi!', description: `${subject.name} - ${topic.name} çalışmanız başarıyla kaydedildi.` });
+        onSessionAdded(); // Notify parent to refresh data if needed
+    } catch(e) {
+        console.error("Pomodoro session could not be saved:", e);
+        toast({ title: 'Hata', description: 'Çalışma oturumu kaydedilirken bir hata oluştu.', variant: 'destructive' });
+    }
   };
 
   const switchMode = useCallback((newMode: TimerMode) => {
@@ -64,7 +135,8 @@ export default function PomodoroTimer({ onWorkSessionComplete }: PomodoroTimerPr
     } else if (isActive && timeRemaining === 0) {
       playSound();
       if (mode === 'work') {
-        onWorkSessionComplete(); // Notify parent that a work session is complete
+        saveWorkSession();
+        onWorkSessionComplete();
         const newSessionsCompleted = sessionsCompleted + 1;
         setSessionsCompleted(newSessionsCompleted);
         const nextMode = newSessionsCompleted % 4 === 0 ? 'longBreak' : 'shortBreak';
@@ -96,19 +168,43 @@ export default function PomodoroTimer({ onWorkSessionComplete }: PomodoroTimerPr
     longBreak: { title: 'Uzun Mola', icon: <Coffee className="w-6 h-6" />, color: 'text-sky-500' },
   };
 
+  const isStartDisabled = mode === 'work' && (!selectedSubjectId || !selectedTopicId);
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Pomodoro Zamanlayıcısı</CardTitle>
         <CardDescription>Odaklanmak için çalışma ve mola seanslarını kullan.</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col items-center justify-center space-y-8">
+      <CardContent className="flex flex-col items-center justify-center space-y-6">
         <div className="flex space-x-2">
           <Button variant={mode === 'work' ? 'default' : 'outline'} onClick={() => switchMode('work')}>Çalışma</Button>
           <Button variant={mode === 'shortBreak' ? 'default' : 'outline'} onClick={() => switchMode('shortBreak')}>Kısa Mola</Button>
           <Button variant={mode === 'longBreak' ? 'default' : 'outline'} onClick={() => switchMode('longBreak')}>Uzun Mola</Button>
         </div>
         
+        {mode === 'work' && (
+          <div className='w-full max-w-md p-4 border rounded-lg bg-muted/20 space-y-4'>
+             <h4 className='text-sm font-medium text-center text-muted-foreground'>Bu seansta neye odaklanacaksın?</h4>
+             {loadingSubjects ? <Skeleton className='h-10 w-full' /> : (
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+                <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
+                  <SelectTrigger><SelectValue placeholder="Ders Seç" /></SelectTrigger>
+                  <SelectContent>
+                    {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                 <Select value={selectedTopicId} onValueChange={setSelectedTopicId} disabled={!selectedSubject}>
+                  <SelectTrigger><SelectValue placeholder={!selectedSubject ? "Önce ders seç" : "Konu Seç"} /></SelectTrigger>
+                  <SelectContent>
+                    {selectedSubject?.topics.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+             )}
+          </div>
+        )}
+
         <div className="relative w-64 h-64 flex items-center justify-center">
             <svg className="absolute w-full h-full" viewBox="0 0 100 100">
                 <circle className="text-muted/20" strokeWidth="7" cx="50" cy="50" r="45" fill="transparent" stroke="currentColor" />
@@ -138,7 +234,7 @@ export default function PomodoroTimer({ onWorkSessionComplete }: PomodoroTimerPr
         </div>
 
         <div className="flex space-x-4">
-          <Button size="lg" onClick={toggleTimer}>
+          <Button size="lg" onClick={toggleTimer} disabled={isStartDisabled}>
             {isActive ? <Pause className="mr-2" /> : <Play className="mr-2" />}
             {isActive ? 'Duraklat' : 'Başlat'}
           </Button>
@@ -147,8 +243,12 @@ export default function PomodoroTimer({ onWorkSessionComplete }: PomodoroTimerPr
             Sıfırla
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground">Tamamlanan seans: {sessionsCompleted}</p>
+        
       </CardContent>
+      <CardFooter className='flex-col items-center justify-center pt-4 border-t'>
+         <p className="text-sm text-muted-foreground">Tamamlanan seans: {sessionsCompleted}</p>
+         {isStartDisabled && <p className='text-xs text-destructive text-center mt-2'>Çalışma seansını başlatmak için lütfen bir ders ve konu seçin.</p>}
+      </CardFooter>
     </Card>
   );
 }
