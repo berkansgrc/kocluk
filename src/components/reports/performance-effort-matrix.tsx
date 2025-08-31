@@ -29,10 +29,10 @@ interface ChartData {
 }
 
 const COLORS = {
-  quadrant1: 'hsl(var(--chart-2))', // Verimli Çalışma (Yeşil)
-  quadrant2: 'hsl(var(--primary))',   // Güçlü Alanlar (Mavi)
-  quadrant3: 'hsl(var(--destructive))', // Öncelikli Alanlar (Kırmızı)
-  quadrant4: 'hsl(var(--muted-foreground))', // Keşfedilmemiş Alanlar (Gri)
+  quadrant1: 'hsl(var(--chart-2))', // USTALIK ALANI (Önceki: Verimli Çalışma - Yeşil)
+  quadrant2: 'hsl(var(--chart-1))',   // VERİMLİ ALAN (Önceki: Güçlü Alanlar - Mavi)
+  quadrant3: 'hsl(var(--destructive))', // ÖNCELİKLİ TEKRAR ALANI (Kırmızı)
+  quadrant4: 'hsl(var(--muted-foreground))', // YENİ BAŞLANGIÇ ALANI (Gri)
 };
 
 const CustomTooltip = ({ active, payload }: any) => {
@@ -83,17 +83,24 @@ export default function PerformanceEffortMatrix({ studySessions }: PerformanceEf
         quadrant: 0, // Will be calculated later
       }));
       
+    if (processedData.length === 0) {
+      return { data: [], avgDuration: 0, avgAccuracy: 0 };
+    }
+      
     const totalDuration = processedData.reduce((sum, d) => sum + d.duration, 0);
-    const totalAccuracySum = processedData.reduce((sum, d) => sum + d.accuracy, 0);
-    const avgDuration = processedData.length > 0 ? totalDuration / processedData.length : 50;
-    const avgAccuracy = processedData.length > 0 ? totalAccuracySum / processedData.length : 50;
+    const totalAccuracyProducts = processedData.reduce((sum, d) => sum + d.accuracy * d.questions, 0);
+    const totalQuestions = processedData.reduce((sum, d) => sum + d.questions, 0);
+    
+    const avgDuration = totalDuration / processedData.length;
+    const avgAccuracy = totalQuestions > 0 ? totalAccuracyProducts / totalQuestions : 0;
+
 
     // Assign quadrant
     processedData.forEach(d => {
-        if (d.duration >= avgDuration && d.accuracy >= avgAccuracy) d.quadrant = 1;
-        else if (d.duration < avgDuration && d.accuracy >= avgAccuracy) d.quadrant = 2;
-        else if (d.duration >= avgDuration && d.accuracy < avgAccuracy) d.quadrant = 3;
-        else d.quadrant = 4;
+        if (d.duration >= avgDuration && d.accuracy >= avgAccuracy) d.quadrant = 1; // Sağ Üst: Ustalık
+        else if (d.duration < avgDuration && d.accuracy >= avgAccuracy) d.quadrant = 2; // Sol Üst: Verimli
+        else if (d.duration >= avgDuration && d.accuracy < avgAccuracy) d.quadrant = 3; // Sağ Alt: Öncelikli
+        else d.quadrant = 4; // Sol Alt: Yeni Başlangıç
     });
 
 
@@ -109,7 +116,7 @@ export default function PerformanceEffortMatrix({ studySessions }: PerformanceEf
   }
 
   return (
-    <ResponsiveContainer width="100%" height={450}>
+    <ResponsiveContainer width="100%" height={500}>
         <ScatterChart
         margin={{
             top: 40,
@@ -118,13 +125,14 @@ export default function PerformanceEffortMatrix({ studySessions }: PerformanceEf
             left: 20,
         }}
         >
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
         <XAxis 
             type="number" 
             dataKey="duration" 
             name="Süre" 
             unit=" dk" 
             stroke="hsl(var(--foreground))"
-            label={{ value: 'Harcanan Toplam Zaman (dk)', position: 'insideBottom', offset: -20 }}
+            label={{ value: 'Harcanan Toplam Zaman (dk)', position: 'insideBottom', offset: -20, dy: 10 }}
         />
         <YAxis 
             type="number" 
@@ -133,7 +141,7 @@ export default function PerformanceEffortMatrix({ studySessions }: PerformanceEf
             unit="%" 
             domain={[0, 100]}
             stroke="hsl(var(--foreground))"
-            label={{ value: 'Doğruluk Oranı (%)', angle: -90, position: 'insideLeft' }}
+            label={{ value: 'Doğruluk Oranı (%)', angle: -90, position: 'insideLeft', dx: -10 }}
         />
         <ZAxis type="number" dataKey="questions" range={[100, 1000]} name="Soru Sayısı" />
         <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />} />
@@ -141,10 +149,10 @@ export default function PerformanceEffortMatrix({ studySessions }: PerformanceEf
         <ReferenceLine y={avgAccuracy} strokeDasharray="3 3" stroke="hsl(var(--border))" />
         <ReferenceLine x={avgDuration} strokeDasharray="3 3" stroke="hsl(var(--border))" />
         
-        <Label value="Verimli Çalışma" position="insideTopRight" offset={10} fill={COLORS.quadrant1} />
-        <Label value="Güçlü Alanlar" position="insideTopLeft" offset={10} fill={COLORS.quadrant2} />
-        <Label value="Öncelikli Alanlar" position="insideBottomRight" offset={10} fill={COLORS.quadrant3} />
-        <Label value="Keşfedilmemiş" position="insideBottomLeft" offset={10} fill={COLORS.quadrant4} />
+        <Label value="USTALIK ALANI" position="insideTopRight" offset={10} fill={COLORS.quadrant1} fontSize={12} fontWeight="bold" />
+        <Label value="VERİMLİ ALAN" position="insideTopLeft" offset={10} fill={COLORS.quadrant2} fontSize={12} fontWeight="bold" />
+        <Label value="ÖNCELİKLİ TEKRAR" position="insideBottomRight" offset={10} fill={COLORS.quadrant3} fontSize={12} fontWeight="bold" />
+        <Label value="YENİ BAŞLANGIÇ" position="insideBottomLeft" offset={10} fill={COLORS.quadrant4} fontSize={12} fontWeight="bold" />
 
         <Scatter data={data} fill="hsl(var(--primary))">
             {data.map((entry, index) => (
