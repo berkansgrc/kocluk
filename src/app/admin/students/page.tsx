@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -7,6 +8,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import type { Student, StudySession } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 import { AppLayout } from '@/components/app-layout';
 import {
   Table,
@@ -41,6 +43,7 @@ interface StudentWithStats extends Student {
 
 function AdminStudentsPageContent() {
   const { toast } = useToast();
+  const { isTeacher, assignedClasses } = useAuth();
   const router = useRouter();
   const [students, setStudents] = useState<StudentWithStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +55,7 @@ function AdminStudentsPageContent() {
     setLoading(true);
     try {
       const querySnapshot = await getDocs(collection(db, 'students'));
-      const studentsList = querySnapshot.docs.map(doc => {
+      let studentsList = querySnapshot.docs.map(doc => {
         const student = { id: doc.id, ...doc.data() } as Student;
         const startOfThisWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
         
@@ -78,6 +81,11 @@ function AdminStudentsPageContent() {
             questionsThisWeek,
         } as StudentWithStats;
       });
+
+      if (isTeacher && assignedClasses) {
+        studentsList = studentsList.filter(student => student.className && assignedClasses.includes(student.className));
+      }
+
       setStudents(studentsList);
     } catch (error) {
       console.error('Öğrenciler getirilirken hata:', error);
@@ -89,7 +97,7 @@ function AdminStudentsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, isTeacher, assignedClasses]);
 
   useEffect(() => {
     fetchAndProcessStudents();

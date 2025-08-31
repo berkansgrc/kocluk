@@ -1,10 +1,11 @@
 
 
+
 export interface CalendarEvent {
     id: string;
     date: string; // YYYY-MM-DD format
     title: string;
-    author: 'student' | 'admin';
+    author: 'student' | 'admin' | 'teacher';
     createdAt: any; // Firestore Timestamp
 }
 
@@ -66,7 +67,16 @@ export interface AchievementDefinition {
 export interface AppUser {
     uid: string;
     email: string;
-    role: 'admin' | 'student';
+    role: 'admin' | 'student' | 'teacher';
+    assignedClasses?: string[];
+}
+
+export interface Teacher {
+    id: string;
+    name: string;
+    email: string;
+    role: 'teacher';
+    assignedClasses: string[];
 }
 
 export interface Student {

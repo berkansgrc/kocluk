@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -18,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { doc, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 
 const eventFormSchema = z.object({
     title: z.string().min(3, { message: "Not en az 3 karakter olmalıdır." }),
@@ -26,14 +28,16 @@ const eventFormSchema = z.object({
 interface EventCalendarProps {
     student: Student;
     onUpdate: () => void;
-    userRole: 'student' | 'admin';
 }
 
-export default function EventCalendar({ student, onUpdate, userRole }: EventCalendarProps) {
+export default function EventCalendar({ student, onUpdate }: EventCalendarProps) {
     const { toast } = useToast();
+    const { isAdmin, isTeacher } = useAuth();
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const userRole = isAdmin ? 'admin' : isTeacher ? 'teacher' : 'student';
     
     const form = useForm<z.infer<typeof eventFormSchema>>({
         resolver: zodResolver(eventFormSchema),
@@ -61,7 +65,7 @@ export default function EventCalendar({ student, onUpdate, userRole }: EventCale
         },
         admin: (date: Date) => {
             const dateString = format(date, 'yyyy-MM-dd');
-            return !!eventsByDate.get(dateString)?.some(e => e.author === 'admin');
+            return !!eventsByDate.get(dateString)?.some(e => e.author === 'admin' || e.author === 'teacher');
         }
     };
 
@@ -160,16 +164,16 @@ export default function EventCalendar({ student, onUpdate, userRole }: EventCale
                              {eventsForSelectedDay.sort((a,b) => a.createdAt.toMillis() - b.createdAt.toMillis()).map(event => (
                                 <li key={event.id} className={cn('text-sm p-2 rounded-md flex justify-between items-center group', {
                                     'bg-primary/10': event.author === 'student',
-                                    'bg-accent/10': event.author === 'admin'
+                                    'bg-accent/10': event.author === 'admin' || event.author === 'teacher',
                                 })}>
                                     <div className='flex items-center gap-2'>
                                        {event.author === 'student' ? <User className='w-4 h-4 text-primary' /> : <Shield className='w-4 h-4 text-accent' />}
                                        <span className={cn({
                                           'text-primary-foreground-dark': event.author === 'student', // these might need custom colors
-                                          'text-accent-foreground': event.author === 'admin'
+                                          'text-accent-foreground': event.author === 'admin' || event.author === 'teacher',
                                        })}>{event.title}</span>
                                     </div>
-                                    {(userRole === 'admin' || userRole === event.author) && (
+                                    {(isAdmin || (isTeacher && event.author === 'teacher')) && (
                                         <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteEvent(event)}>
                                             <Trash2 className='w-4 h-4 text-destructive' />
                                         </Button>

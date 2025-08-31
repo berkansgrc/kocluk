@@ -320,7 +320,7 @@ function PageContent() {
 
 
 export default function DashboardPage() {
-  const { loading, user, isAdmin } = useAuth();
+  const { loading, user, isAdmin, isTeacher } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -331,12 +331,12 @@ export default function DashboardPage() {
       router.push('/login');
       return;
     }
-    if (isAdmin) {
+    if (isAdmin || isTeacher) {
       router.push('/admin');
     }
-  }, [user, loading, isAdmin, router]);
+  }, [user, loading, isAdmin, isTeacher, router]);
 
-  if (loading || !user || isAdmin) {
+  if (loading || !user || isAdmin || isTeacher) {
     return <div className="flex h-screen w-screen items-center justify-center">Yükleniyor...</div>;
   }
 

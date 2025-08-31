@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -6,6 +7,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import type { Student, StudySession } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 import { AppLayout } from '@/components/app-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,6 +26,7 @@ const COLORS = [
 
 function AdminReportsPageContent() {
   const { toast } = useToast();
+  const { isTeacher, assignedClasses } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,7 +34,12 @@ function AdminReportsPageContent() {
     setLoading(true);
     try {
       const querySnapshot = await getDocs(collection(db, 'students'));
-      const studentsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+      let studentsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+
+      if (isTeacher && assignedClasses) {
+        studentsList = studentsList.filter(student => student.className && assignedClasses.includes(student.className));
+      }
+
       setStudents(studentsList);
     } catch (error) {
       console.error('Öğrenciler getirilirken hata:', error);
@@ -43,7 +51,7 @@ function AdminReportsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, isTeacher, assignedClasses]);
 
   useEffect(() => {
     fetchStudents();

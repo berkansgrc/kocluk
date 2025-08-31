@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
@@ -98,7 +99,7 @@ type TimeRange = 'weekly' | 'monthly' | 'yearly' | 'all';
 function StudentDetailPageContent() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin, isTeacher, assignedClasses } = useAuth();
   const { toast } = useToast();
   const studentId = params.studentId as string;
 
@@ -160,6 +161,13 @@ function StudentDetailPageContent() {
       const studentDocSnap = await getDoc(studentDocRef);
       if (studentDocSnap.exists()) {
         const studentData = { id: studentDocSnap.id, ...studentDocSnap.data() } as Student
+
+        if (isTeacher && assignedClasses && studentData.className && !assignedClasses.includes(studentData.className)) {
+            toast({ title: 'Erişim Engellendi', description: 'Bu öğrencinin detaylarını görme yetkiniz yok.', variant: 'destructive' });
+            router.push('/admin/students');
+            return;
+        }
+
         setStudent(studentData);
         settingsForm.reset({ 
           weeklyQuestionGoal: studentData.weeklyQuestionGoal,
@@ -180,7 +188,7 @@ function StudentDetailPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [studentId, toast, router, user, settingsForm]);
+  }, [studentId, toast, router, user, settingsForm, isTeacher, assignedClasses]);
 
   useEffect(() => {
     setLoading(true);
@@ -561,12 +569,14 @@ function StudentDetailPageContent() {
     );
   }
 
+  const currentUserRole = isTeacher ? 'teacher' : 'admin';
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2">
         <div>
            <Button variant="ghost" size="sm" asChild className="mb-2">
-            <Link href="/admin">
+            <Link href="/admin/students">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Geri Dön
             </Link>

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as z from 'zod';
@@ -58,10 +59,12 @@ import { startOfWeek, isAfter, fromUnixTime, subDays, startOfDay, isSameDay } fr
 import { AppLayout } from '@/components/app-layout';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/use-auth';
 
 
 function AdminPageContent() {
   const { toast } = useToast();
+  const { user, isAdmin, isTeacher, assignedClasses } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -70,9 +73,15 @@ function AdminPageContent() {
     setLoading(true);
     try {
       const querySnapshot = await getDocs(collection(db, 'students'));
-      const studentsList = querySnapshot.docs.map(
+      let studentsList = querySnapshot.docs.map(
         (doc) => ({ id: doc.id, ...doc.data() } as Student)
       );
+
+      // If user is a teacher, filter students by assigned classes
+      if (isTeacher && assignedClasses) {
+        studentsList = studentsList.filter(student => student.className && assignedClasses.includes(student.className));
+      }
+
       setStudents(studentsList);
     } catch (error) {
       console.error('Öğrenciler getirilirken hata:', error);
@@ -85,7 +94,7 @@ function AdminPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, isTeacher, assignedClasses]);
 
   useEffect(() => {
     fetchStudents();
@@ -238,10 +247,10 @@ function AdminPageContent() {
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">
-            Yönetici Paneli
+            Yönetim Paneli
           </h1>
           <p className="text-muted-foreground">
-            Platformun genel durumu ve eyleme yönelik özetler.
+            {isAdmin ? "Platformun genel durumu ve eyleme yönelik özetler." : "Sorumlu olduğunuz sınıflara genel bir bakış."}
           </p>
         </div>
       </div>
@@ -353,5 +362,3 @@ export default function AdminPage() {
         </AppLayout>
     )
 }
-
-    

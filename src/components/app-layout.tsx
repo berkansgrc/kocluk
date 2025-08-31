@@ -18,35 +18,38 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen, ClipboardCheck, Users, LineChart } from 'lucide-react';
+import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen, ClipboardCheck, Users, LineChart, UserCog } from 'lucide-react';
 import { Button } from './ui/button';
-import { useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
+import { useAuth, protectedRoutes, adminAndTeacherRoutes } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
 import { ThemeToggle } from './theme-toggle';
 
 const navItems = [
   // Student routes
-  { href: '/', label: 'Anasayfa', icon: LayoutDashboard, adminOnly: false },
-  { href: '/plan', label: 'Haftalık Planım', icon: ClipboardCheck, adminOnly: false },
-  { href: '/reports', label: 'Raporlarım', icon: BarChart3, adminOnly: false },
-  { href: '/achievements', label: 'Başarımlarım', icon: Award, adminOnly: false },
-  { href: '/resources', label: 'Kaynaklar', icon: BookOpen, adminOnly: false },
-  { href: '/zaman-yonetimi', label: 'Zaman Yönetimi', icon: Clock, adminOnly: false },
-  { href: '/deneme-analizi', label: 'Deneme Analizi', icon: ClipboardPen, adminOnly: false },
+  { href: '/', label: 'Anasayfa', icon: LayoutDashboard, role: 'student' },
+  { href: '/plan', label: 'Haftalık Planım', icon: ClipboardCheck, role: 'student' },
+  { href: '/reports', label: 'Raporlarım', icon: BarChart3, role: 'student' },
+  { href: '/achievements', label: 'Başarımlarım', icon: Award, role: 'student' },
+  { href: '/resources', label: 'Kaynaklar', icon: BookOpen, role: 'student' },
+  { href: '/zaman-yonetimi', label: 'Zaman Yönetimi', icon: Clock, role: 'student' },
+  { href: '/deneme-analizi', label: 'Deneme Analizi', icon: ClipboardPen, role: 'student' },
 
-  // Admin routes
-  { href: '/admin', label: 'Admin Paneli', icon: Shield, adminOnly: true },
-  { href: '/admin/students', label: 'Öğrenciler', icon: Users, adminOnly: true },
-  { href: '/admin/reports', label: 'Genel Raporlar', icon: LineChart, adminOnly: true },
-  { href: '/admin/library', label: 'Kütüphane', icon: Library, adminOnly: true },
+  // Admin and Teacher routes
+  { href: '/admin', label: 'Yönetim Paneli', icon: Shield, role: 'admin-teacher' },
+  { href: '/admin/students', label: 'Öğrenciler', icon: Users, role: 'admin-teacher' },
+  { href: '/admin/reports', label: 'Genel Raporlar', icon: LineChart, role: 'admin-teacher' },
+  { href: '/admin/library', label: 'Kütüphane', icon: Library, role: 'admin-teacher' },
+
+  // Admin only routes
+  { href: '/admin/users', label: 'Kullanıcı Yönetimi', icon: UserCog, role: 'admin' },
 ];
 
 
 function LayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout, isAdmin, loading } = useAuth();
+  const { user, logout, isAdmin, isTeacher, loading } = useAuth();
   const { toast } = useToast();
 
    useEffect(() => {
@@ -54,26 +57,23 @@ function LayoutContent({ children }: { children: ReactNode }) {
       return; 
     }
     
-    // Redirect to login if not authenticated and trying to access a protected route.
-    const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route)) || 
-                           adminRoutes.some(route => pathname.startsWith(route));
+    const isProtected = protectedRoutes.some(route => pathname.startsWith(route));
+    const isAdminTeacherRoute = adminAndTeacherRoutes.some(route => pathname.startsWith(route));
 
-    if (!user && isProtectedRoute) {
+    if (!user && (isProtected || isAdminTeacherRoute)) {
       router.push('/login');
       return;
     }
     
-    // Redirect to home if trying to access an admin route without admin privileges.
-    const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
-    if (user && !isAdmin && isAdminRoute) {
+    if (user && !(isAdmin || isTeacher) && isAdminTeacherRoute) {
         toast({
             title: 'Erişim Engellendi',
-            description: 'Admin paneline erişim yetkiniz yok.',
+            description: 'Yönetici paneline erişim yetkiniz yok.',
             variant: 'destructive',
         });
         router.push('/');
     }
-  }, [user, isAdmin, loading, pathname, router, toast]);
+  }, [user, isAdmin, isTeacher, loading, pathname, router, toast]);
 
   if (loading) {
      return (
@@ -99,7 +99,8 @@ function LayoutContent({ children }: { children: ReactNode }) {
   
   const visibleNavItems = navItems.filter(item => {
     if (isAdmin) return true;
-    return !item.adminOnly;
+    if (isTeacher) return item.role === 'admin-teacher' || item.role === 'teacher';
+    return item.role === 'student';
   });
 
   return (
