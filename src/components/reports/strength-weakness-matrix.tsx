@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import type { StudySession } from '@/lib/types';
 import { useMemo, useState } from 'react';
 import { ArrowUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Badge } from '../ui/badge';
 
 interface SubjectStats {
   subject: string;
@@ -116,7 +118,17 @@ export default function StrengthWeaknessMatrix({ studySessions }: StrengthWeakne
               <TableCell>{stat.topic}</TableCell>
               <TableCell className="text-right">{stat.totalQuestions}</TableCell>
               <TableCell className="text-right">{stat.totalMinutes}</TableCell>
-              <TableCell className="text-right">{stat.accuracy.toFixed(1)}%</TableCell>
+              <TableCell className="text-right">
+                 <Badge
+                  className={cn("text-xs font-semibold", {
+                    'bg-emerald-100 text-emerald-800 hover:bg-emerald-200': stat.accuracy >= 85,
+                    'bg-amber-100 text-amber-800 hover:bg-amber-200': stat.accuracy >= 60 && stat.accuracy < 85,
+                    'bg-red-100 text-red-800 hover:bg-red-200': stat.accuracy < 60,
+                  })}
+                >
+                  {stat.accuracy.toFixed(1)}%
+                </Badge>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
