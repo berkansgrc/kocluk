@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, fromUnixTime } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import type { Student, StudySession } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/app-layout';
@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell, CartesianGrid } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Crown, HeartPulse, Trophy } from 'lucide-react';
-import { startOfWeek, isAfter, subDays } from 'date-fns';
+import { startOfWeek, isAfter, subDays, fromUnixTime } from 'date-fns';
 
 const COLORS = [
   'hsl(var(--chart-1))',
