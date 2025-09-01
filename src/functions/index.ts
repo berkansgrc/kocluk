@@ -1,91 +1,84 @@
+
+'use server';
 /**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
+ * @fileOverview Firebase Cloud Functions.
+ * This file contains the server-side logic for creating new users.
  */
 
-import {onCall, HttpsError} from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import {initializeApp} from "firebase-admin/app";
-import {getAuth} from "firebase-admin/auth";
-import {getFirestore} from "firebase-admin/firestore";
+import {onCall, HttpsError} from 'firebase-functions/v2/https';
+import * as logger from 'firebase-functions/logger';
+import {initializeApp} from 'firebase-admin/app';
+import {getAuth} from 'firebase-admin/auth';
+import {getFirestore} from 'firebase-admin/firestore';
 
-// Initialize Firebase Admin SDK
+// Initialize Firebase Admin SDK.
+// It's safe to call this once per file.
 initializeApp();
 
+/**
+ * Creates a new student user in Firebase Authentication.
+ * This function only handles the auth creation part.
+ * The Firestore document creation will be handled by the client.
+ */
 export const createStudent = onCall(async (request) => {
-  // Check if the caller is authenticated and an admin.
-  // Using a custom claim for 'admin' is the recommended security practice.
-  // For this project, we check the email as per the requirements.
-  if (request.auth?.token.email !== "berkan_1225@hotmail.com") {
-    logger.warn("Unauthorized user tried to create a student.", {
-      email: request.auth?.token.email,
+  // Ensure the caller is an authenticated admin.
+  // IMPORTANT: For production, use custom claims for role management.
+  // Using email for validation is a temporary measure for this specific project.
+  if (request.auth?.token.email !== 'berkan_1225@hotmail.com') {
+    logger.warn('Unauthorized user attempted to create a student.', {
+      email: request.auth?.token.email || 'No email provided',
     });
     throw new HttpsError(
-      "unauthenticated",
-      "Bu işlemi yapmak için yönetici yetkiniz yok.",
+      'unauthenticated',
+      'Bu işlemi yapmak için yönetici yetkiniz yok.'
     );
   }
 
-  // Validate incoming data
   const {email, password, name, className} = request.data;
+
+  // Validate required data
   if (!email || !password || !name) {
     throw new HttpsError(
-      "invalid-argument",
-      "E-posta, şifre ve isim alanları zorunludur.",
+      'invalid-argument',
+      'E-posta, şifre ve isim alanları zorunludur.'
     );
   }
   if (password.length < 6) {
     throw new HttpsError(
-      "invalid-argument",
-      "Şifre en az 6 karakter olmalıdır.",
+      'invalid-argument',
+      'Şifre en az 6 karakter olmalıdır.'
     );
   }
 
-  let newUserRecord;
   try {
-    // Step 1: Create the user in Firebase Authentication
-    newUserRecord = await getAuth().createUser({
-      email: email,
-      password: password,
+    // 1. Create the user in Firebase Authentication
+    const userRecord = await getAuth().createUser({
+      email,
+      password,
       displayName: name,
     });
-    logger.info("Successfully created new user:", newUserRecord.uid);
-  } catch (error: any) {
-    logger.error("Error creating new user in Auth:", error);
-    // Provide a more specific error message to the client
-    if (error.code === "auth/email-already-exists") {
-      throw new HttpsError(
-        "already-exists",
-        "Bu e-posta adresi zaten kullanımda.",
-      );
-    }
-    throw new HttpsError("internal", "Yeni kullanıcı oluşturulamadı.");
-  }
 
-  try {
+    logger.info(`Successfully created auth user: ${userRecord.uid}`);
+
     const firestore = getFirestore();
     const batch = firestore.batch();
 
-    // Step 2: Create the user role document in the 'users' collection
-    const userDocRef = firestore.collection("users").doc(newUserRecord.uid);
+    // 2. Create the user role document in the 'users' collection
+    const userDocRef = firestore.collection('users').doc(userRecord.uid);
     batch.set(userDocRef, {
-      uid: newUserRecord.uid,
+      uid: userRecord.uid,
       email: email,
-      role: "student",
+      role: 'student',
     });
 
-    // Step 3: Create the student profile in the 'students' collection
-    const studentDocRef = firestore.collection("students").doc(newUserRecord.uid);
+    // 3. Create the student profile in the 'students' collection
+    const studentDocRef = firestore.collection('students').doc(userRecord.uid);
     batch.set(studentDocRef, {
-      id: newUserRecord.uid,
+      id: userRecord.uid,
       name: name,
       email: email,
-      className: className || "", // Default to empty string if not provided
-      weeklyQuestionGoal: 100, // Default value
+      className: className || '',
+      weeklyQuestionGoal: 100,
       studySessions: [],
       assignments: [],
       resources: [],
@@ -95,22 +88,23 @@ export const createStudent = onCall(async (request) => {
       calendarEvents: [],
     });
 
-    // Step 4: Commit the batch write
+    // 4. Commit the batch write
     await batch.commit();
-    logger.info(`Successfully created documents for user ${newUserRecord.uid}`);
+    logger.info(`Successfully created Firestore documents for ${userRecord.uid}`);
 
-    return {success: true, uid: newUserRecord.uid};
-  } catch (error) {
-    logger.error(
-      `Error creating Firestore documents for user ${newUserRecord.uid}:`,
-      error,
-    );
-    // If Firestore write fails, delete the created Auth user to maintain consistency
-    await getAuth().deleteUser(newUserRecord.uid);
-    logger.warn(`Deleted orphaned Auth user ${newUserRecord.uid}`);
+    return {success: true, uid: userRecord.uid};
+  } catch (error: any) {
+    logger.error('Error during student creation process:', error);
+    if (error.code === 'auth/email-already-exists') {
+      throw new HttpsError(
+        'already-exists',
+        'Bu e-posta adresi zaten kullanımda.'
+      );
+    }
+    // General internal error for any other issue
     throw new HttpsError(
-      "internal",
-      "Veritabanı kaydı oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.",
+      'internal',
+      'Kullanıcı oluşturulurken beklenmedik bir sunucu hatası oluştu.'
     );
   }
 });

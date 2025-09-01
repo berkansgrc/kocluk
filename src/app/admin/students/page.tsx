@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -171,12 +172,12 @@ function AdminStudentsPageContent() {
     }
     
     const functions = getFunctions();
-    const createStudent = httpsCallable(functions, 'createStudent');
+    const createStudentFn = httpsCallable(functions, 'createStudent');
     
     toast({ title: 'Öğrenci Ekleniyor...', description: 'Lütfen bekleyin.' });
   
     try {
-      const result: any = await createStudent(values);
+      const result: any = await createStudentFn(values);
       if (result.data.success) {
         toast({ title: 'Başarılı!', description: 'Öğrenci başarıyla eklendi.' });
         addStudentForm.reset();
@@ -382,4 +383,3 @@ export default function AdminStudentsPage() {
         </AppLayout>
     )
 }
-    

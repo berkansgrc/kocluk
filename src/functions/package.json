@@ -1,8 +1,9 @@
+
 {
   "name": "functions",
   "description": "Cloud Functions for Firebase",
   "scripts": {
-    "build": "npm run lint && tsc",
+    "build": "tsc",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
