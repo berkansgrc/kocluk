@@ -25,7 +25,6 @@ export const createStudent = onCall(async (request) => {
   }
 
   // Security Check 2: Ensure the caller is an admin.
-  // In a real production app, use custom claims for roles for better security.
   if (request.auth.token.email !== 'berkan_1225@hotmail.com') {
     throw new HttpsError(
       'permission-denied', 
@@ -99,3 +98,6 @@ export const createStudent = onCall(async (request) => {
     throw new HttpsError('internal', 'Öğrenci oluşturulurken beklenmedik bir sunucu hatası oluştu.');
   }
 });
+
+
+    

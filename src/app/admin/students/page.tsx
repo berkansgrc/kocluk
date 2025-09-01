@@ -301,7 +301,7 @@ function AdminStudentsPageContent() {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Sınıf</FormLabel>
-                                        <FormControl><Input placeholder="Örn: 8-A" {...field} /></FormControl>
+                                        <FormControl><Input placeholder="Örn: 8-A" {...field} value={field.value || ''} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -386,4 +386,6 @@ export default function AdminStudentsPage() {
         </AppLayout>
     )
 }
+    
+
     
