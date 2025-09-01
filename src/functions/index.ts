@@ -7,7 +7,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 // Initialize Firebase Admin SDK
-initializeApp();
+const app = initializeApp();
 
 /**
  * Creates a new student user in Firebase Authentication and a corresponding
@@ -37,7 +37,7 @@ export const createStudent = onCall(async (request) => {
 
   try {
     // 1. Create user in Firebase Authentication
-    const userRecord = await getAuth().createUser({
+    const userRecord = await getAuth(app).createUser({
       email,
       password,
       displayName: name,
@@ -59,7 +59,7 @@ export const createStudent = onCall(async (request) => {
     };
     
     // Correctly write data to Firestore
-    await getFirestore().collection('students').doc(userRecord.uid).set(studentData);
+    await getFirestore(app).collection('students').doc(userRecord.uid).set(studentData);
 
     return { success: true, message: 'Öğrenci başarıyla oluşturuldu.', uid: userRecord.uid };
 
