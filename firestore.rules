@@ -1,36 +1,33 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if a user is an admin
-    function isAdmin(request) {
-      return request.auth.token.email == 'berkan_1225@hotmail.com';
+  
+    // Helper function to check for admin or teacher role
+    function isAdminOrTeacher() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'teacher'];
     }
 
-    // `users` collection:
-    // - Anyone authenticated can read (to check roles, etc.)
-    // - Only admins can create, update or delete user roles
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin(request);
+    // Students collection rules
+    // Admin/Teacher can read/write any student document.
+    // Students can only read/update their OWN document.
+    match /students/{studentId} {
+      allow read, update: if request.auth != null && (request.auth.uid == studentId || isAdminOrTeacher());
+      allow create, delete: if request.auth != null && isAdminOrTeacher();
     }
     
-    // `students` collection:
-    // - An authenticated user can only read/update their own data
-    // - Admins can read/write any student's data
-    match /students/{studentId} {
-      allow read: if request.auth.uid == studentId || isAdmin(request);
-      allow update: if request.auth.uid == studentId || isAdmin(request);
-      allow create, delete: if isAdmin(request);
+    // Users collection rules (for roles)
+    // Only admins/teachers can manage user roles.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && isAdminOrTeacher();
     }
 
-    // `subjects` collection:
-    // - Anyone authenticated can read the library (for forms)
-    // - Only admins can write to the library
+    // Subjects collection rules (library)
+    // Any authenticated user can read the library.
+    // Only admins/teachers can modify the library.
     match /subjects/{subjectId} {
       allow read: if request.auth != null;
-      allow write: if isAdmin(request);
+      allow write: if request.auth != null && isAdminOrTeacher();
     }
-
   }
 }
