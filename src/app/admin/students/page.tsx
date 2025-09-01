@@ -27,10 +27,32 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowUpDown, Eye } from 'lucide-react';
+import { ArrowUpDown, Eye, PlusCircle, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { startOfWeek, isAfter, fromUnixTime } from 'date-fns';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 type SortableKeys = 'name' | 'email' | 'className' | 'avgAccuracy' | 'questionsThisWeek';
 type SortDirection = 'asc' | 'desc';
@@ -39,6 +61,13 @@ interface StudentWithStats extends Student {
     avgAccuracy: number;
     questionsThisWeek: number;
 }
+
+const addStudentFormSchema = z.object({
+  name: z.string().min(3, { message: 'İsim en az 3 karakter olmalıdır.' }),
+  email: z.string().email({ message: 'Geçerli bir e-posta adresi girin.' }),
+  password: z.string().min(6, { message: 'Şifre en az 6 karakter olmalıdır.' }),
+  className: z.string().optional(),
+});
 
 
 function AdminStudentsPageContent() {
@@ -50,6 +79,12 @@ function AdminStudentsPageContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: SortDirection } | null>({ key: 'name', direction: 'asc' });
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+
+  const addStudentForm = useForm<z.infer<typeof addStudentFormSchema>>({
+    resolver: zodResolver(addStudentFormSchema),
+    defaultValues: { name: '', email: '', password: '', className: '' },
+  });
 
   const fetchAndProcessStudents = useCallback(async () => {
     setLoading(true);
@@ -129,6 +164,32 @@ function AdminStudentsPageContent() {
     }
     setSortConfig({ key, direction });
   };
+
+  const handleAddStudent = async (values: z.infer<typeof addStudentFormSchema>) => {
+    const functions = getFunctions();
+    const createStudent = httpsCallable(functions, 'createStudent');
+    
+    toast({ title: 'Öğrenci Ekleniyor...', description: 'Lütfen bekleyin.' });
+
+    try {
+      const result: any = await createStudent(values);
+      if (result.data.success) {
+        toast({ title: 'Başarılı!', description: 'Öğrenci başarıyla eklendi.' });
+        addStudentForm.reset();
+        setIsAddStudentOpen(false);
+        fetchAndProcessStudents(); // Refresh the list
+      } else {
+        throw new Error(result.data.error || 'Bilinmeyen bir hata oluştu.');
+      }
+    } catch (error: any) {
+      console.error('Öğrenci eklenirken hata:', error);
+      toast({
+        title: 'Hata',
+        description: error.message || 'Öğrenci eklenirken bir sorun oluştu.',
+        variant: 'destructive',
+      });
+    }
+  };
   
   const SortableHeader = ({ sortKey, label, className }: { sortKey: SortableKeys, label: string, className?: string }) => (
     <TableHead className={className}>
@@ -151,6 +212,7 @@ function AdminStudentsPageContent() {
               <Skeleton className="h-10 w-64" />
               <Skeleton className="h-10 w-48" />
             </div>
+            <Skeleton className="h-10 w-36" />
         </div>
         <div className="rounded-md border">
           <Table>
@@ -178,6 +240,75 @@ function AdminStudentsPageContent() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight font-headline">Tüm Öğrenciler</h1>
             </div>
+            <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
+              <DialogTrigger asChild>
+                <Button><UserPlus className="mr-2 h-4 w-4" /> Yeni Öğrenci Ekle</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Yeni Öğrenci Ekle</DialogTitle>
+                  <DialogDescription>
+                    Yeni bir öğrenci hesabı oluşturun ve sisteme dahil edin.
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...addStudentForm}>
+                  <form onSubmit={addStudentForm.handleSubmit(handleAddStudent)} className="space-y-4">
+                    <FormField
+                      control={addStudentForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>İsim Soyisim</FormLabel>
+                          <FormControl><Input placeholder="Örn: Ahmet Yılmaz" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={addStudentForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>E-posta</FormLabel>
+                          <FormControl><Input placeholder="ornek@eposta.com" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                      control={addStudentForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Başlangıç Şifresi</FormLabel>
+                          <FormControl><Input type="password" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                      control={addStudentForm.control}
+                      name="className"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sınıf (İsteğe Bağlı)</FormLabel>
+                          <FormControl><Input placeholder="Örn: 12-A" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <DialogFooter>
+                        <DialogClose asChild>
+                            <Button type="button" variant="secondary">İptal</Button>
+                        </DialogClose>
+                        <Button type="submit" disabled={addStudentForm.formState.isSubmitting}>
+                            {addStudentForm.formState.isSubmitting ? 'Ekleniyor...' : 'Öğrenciyi Ekle'}
+                        </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
        </div>
       <div className="flex items-center gap-4">
         <Input
@@ -246,6 +377,4 @@ export default function AdminStudentsPage() {
         </AppLayout>
     )
 }
-    
-
     
