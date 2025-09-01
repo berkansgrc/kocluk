@@ -3,30 +3,36 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // --- Helper Functions ---
     function isAuth() {
       return request.auth != null;
     }
 
     function isAdmin() {
-      // In a real app, this should check for a custom claim:
-      // return request.auth.token.admin == true;
+      // Admin user is identified by their specific email.
       return isAuth() && request.auth.token.email == 'berkan_1225@hotmail.com';
     }
 
-    function isOwner(userId) {
-      return isAuth() && request.auth.uid == userId;
+    function isOwner(uid) {
+      // Check if the requesting user is the owner of the document.
+      return isAuth() && request.auth.uid == uid;
     }
 
-    // Students can only read and update their own data.
-    // Admins can read and write any student data.
+    // --- Collections Rules ---
+
+    // Students Collection
+    // Students can read and update their own data.
+    // Admins can read and write any student's data.
     match /students/{studentId} {
-      allow read, update: if isOwner(studentId) || isAdmin();
+      allow read: if isAdmin() || isOwner(studentId);
+      allow update: if isAdmin() || isOwner(studentId);
+      // Only admins can create or delete student documents.
       allow create, delete: if isAdmin();
     }
 
-    // Subjects can be read by any authenticated user, but only written by admins.
-    // This allows students to see the list of subjects/topics for logging sessions.
+    // Subjects Collection
+    // Any authenticated user can read the subjects list for populating forms.
+    // Only admins can modify the course library.
     match /subjects/{subjectId} {
       allow read: if isAuth();
       allow write: if isAdmin();
