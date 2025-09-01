@@ -62,8 +62,8 @@ export const createStudent = onCall(async (request) => {
 
     // 2. Create user document in Firestore with default values
     const studentData = {
-      name,
-      email,
+      name: name,
+      email: email,
       className: className || '', // Ensure className is not undefined
       weeklyQuestionGoal: 100,
       studySessions: [],
@@ -98,6 +98,4 @@ export const createStudent = onCall(async (request) => {
     throw new HttpsError('internal', 'Öğrenci oluşturulurken beklenmedik bir sunucu hatası oluştu.');
   }
 });
-
-
     
