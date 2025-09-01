@@ -386,5 +386,4 @@ export default function AdminStudentsPage() {
         </AppLayout>
     )
 }
-
     
