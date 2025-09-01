@@ -99,4 +99,3 @@ export const createStudent = onCall(async (request) => {
     throw new HttpsError('internal', 'Öğrenci oluşturulurken beklenmedik bir sunucu hatası oluştu.');
   }
 });
-    
