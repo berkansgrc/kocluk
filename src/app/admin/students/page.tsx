@@ -43,7 +43,7 @@ interface StudentWithStats extends Student {
 
 function AdminStudentsPageContent() {
   const { toast } = useToast();
-  const { isTeacher, assignedClasses } = useAuth();
+  const { isAdmin } = useAuth();
   const router = useRouter();
   const [students, setStudents] = useState<StudentWithStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,10 +82,6 @@ function AdminStudentsPageContent() {
         } as StudentWithStats;
       });
 
-      if (isTeacher && assignedClasses) {
-        studentsList = studentsList.filter(student => student.className && assignedClasses.includes(student.className));
-      }
-
       setStudents(studentsList);
     } catch (error) {
       console.error('Öğrenciler getirilirken hata:', error);
@@ -97,7 +93,7 @@ function AdminStudentsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [toast, isTeacher, assignedClasses]);
+  }, [toast]);
 
   useEffect(() => {
     fetchAndProcessStudents();

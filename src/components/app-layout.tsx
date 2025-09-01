@@ -18,9 +18,9 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen, ClipboardCheck, Users, LineChart, UserCog } from 'lucide-react';
+import { Award, BarChart3, BookOpen, LayoutDashboard, LogOut, Shield, Target, Library, Clock, ClipboardPen, ClipboardCheck, Users, LineChart } from 'lucide-react';
 import { Button } from './ui/button';
-import { useAuth, protectedRoutes, adminAndTeacherRoutes } from '@/hooks/use-auth';
+import { useAuth, protectedRoutes, adminRoutes } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
 import { ThemeToggle } from './theme-toggle';
@@ -35,21 +35,18 @@ const navItems = [
   { href: '/zaman-yonetimi', label: 'Zaman Yönetimi', icon: Clock, role: 'student' },
   { href: '/deneme-analizi', label: 'Deneme Analizi', icon: ClipboardPen, role: 'student' },
 
-  // Admin and Teacher routes
-  { href: '/admin', label: 'Yönetim Paneli', icon: Shield, role: 'admin-teacher' },
-  { href: '/admin/students', label: 'Öğrenciler', icon: Users, role: 'admin-teacher' },
-  { href: '/admin/reports', label: 'Genel Raporlar', icon: LineChart, role: 'admin-teacher' },
-  { href: '/admin/library', label: 'Kütüphane', icon: Library, role: 'admin-teacher' },
-
-  // Admin only routes
-  { href: '/admin/users', label: 'Kullanıcı Yönetimi', icon: UserCog, role: 'admin' },
+  // Admin routes
+  { href: '/admin', label: 'Yönetim Paneli', icon: Shield, role: 'admin' },
+  { href: '/admin/students', label: 'Öğrenciler', icon: Users, role: 'admin' },
+  { href: '/admin/reports', label: 'Genel Raporlar', icon: LineChart, role: 'admin' },
+  { href: '/admin/library', label: 'Kütüphane', icon: Library, role: 'admin' },
 ];
 
 
 function LayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout, isAdmin, isTeacher, loading } = useAuth();
+  const { user, logout, isAdmin, loading } = useAuth();
   const { toast } = useToast();
 
    useEffect(() => {
@@ -58,14 +55,14 @@ function LayoutContent({ children }: { children: ReactNode }) {
     }
     
     const isProtected = protectedRoutes.some(route => pathname.startsWith(route));
-    const isAdminTeacherRoute = adminAndTeacherRoutes.some(route => pathname.startsWith(route));
+    const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
 
-    if (!user && (isProtected || isAdminTeacherRoute)) {
+    if (!user && (isProtected || isAdminRoute)) {
       router.push('/login');
       return;
     }
     
-    if (user && !(isAdmin || isTeacher) && isAdminTeacherRoute) {
+    if (user && !isAdmin && isAdminRoute) {
         toast({
             title: 'Erişim Engellendi',
             description: 'Yönetici paneline erişim yetkiniz yok.',
@@ -73,7 +70,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
         });
         router.push('/');
     }
-  }, [user, isAdmin, isTeacher, loading, pathname, router, toast]);
+  }, [user, isAdmin, loading, pathname, router, toast]);
 
   if (loading) {
      return (
@@ -98,8 +95,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
   }
   
   const visibleNavItems = navItems.filter(item => {
-    if (isAdmin) return true;
-    if (isTeacher) return item.role === 'admin-teacher' || item.role === 'teacher';
+    if (isAdmin) return item.role === 'admin';
     return item.role === 'student';
   });
 

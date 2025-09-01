@@ -99,7 +99,7 @@ type TimeRange = 'weekly' | 'monthly' | 'yearly' | 'all';
 function StudentDetailPageContent() {
   const params = useParams();
   const router = useRouter();
-  const { user, isAdmin, isTeacher, assignedClasses } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const studentId = params.studentId as string;
 
@@ -161,13 +161,6 @@ function StudentDetailPageContent() {
       const studentDocSnap = await getDoc(studentDocRef);
       if (studentDocSnap.exists()) {
         const studentData = { id: studentDocSnap.id, ...studentDocSnap.data() } as Student
-
-        if (isTeacher && assignedClasses && studentData.className && !assignedClasses.includes(studentData.className)) {
-            toast({ title: 'Erişim Engellendi', description: 'Bu öğrencinin detaylarını görme yetkiniz yok.', variant: 'destructive' });
-            router.push('/admin/students');
-            return;
-        }
-
         setStudent(studentData);
         settingsForm.reset({ 
           weeklyQuestionGoal: studentData.weeklyQuestionGoal,
@@ -188,7 +181,7 @@ function StudentDetailPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [studentId, toast, router, user, settingsForm, isTeacher, assignedClasses]);
+  }, [studentId, toast, router, user, settingsForm]);
 
   useEffect(() => {
     setLoading(true);
@@ -568,8 +561,6 @@ function StudentDetailPageContent() {
       </div>
     );
   }
-
-  const currentUserRole = isTeacher ? 'teacher' : 'admin';
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">

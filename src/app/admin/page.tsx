@@ -64,7 +64,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 function AdminPageContent() {
   const { toast } = useToast();
-  const { user, isAdmin, isTeacher, assignedClasses } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -76,11 +76,6 @@ function AdminPageContent() {
       let studentsList = querySnapshot.docs.map(
         (doc) => ({ id: doc.id, ...doc.data() } as Student)
       );
-
-      // If user is a teacher, filter students by assigned classes
-      if (isTeacher && assignedClasses) {
-        studentsList = studentsList.filter(student => student.className && assignedClasses.includes(student.className));
-      }
 
       setStudents(studentsList);
     } catch (error) {
@@ -94,7 +89,7 @@ function AdminPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [toast, isTeacher, assignedClasses]);
+  }, [toast]);
 
   useEffect(() => {
     fetchStudents();

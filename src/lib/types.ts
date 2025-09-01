@@ -64,21 +64,6 @@ export interface AchievementDefinition {
   icon: React.ElementType;
 }
 
-export interface AppUser {
-    uid: string;
-    email: string;
-    role: 'admin' | 'student' | 'teacher';
-    assignedClasses?: string[];
-}
-
-export interface Teacher {
-    id: string;
-    name: string;
-    email: string;
-    role: 'teacher';
-    assignedClasses: string[];
-}
-
 export interface Student {
   id: string;
   name: string;

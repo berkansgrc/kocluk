@@ -26,7 +26,7 @@ const COLORS = [
 
 function AdminReportsPageContent() {
   const { toast } = useToast();
-  const { isTeacher, assignedClasses } = useAuth();
+  const { isAdmin } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,11 +35,6 @@ function AdminReportsPageContent() {
     try {
       const querySnapshot = await getDocs(collection(db, 'students'));
       let studentsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
-
-      if (isTeacher && assignedClasses) {
-        studentsList = studentsList.filter(student => student.className && assignedClasses.includes(student.className));
-      }
-
       setStudents(studentsList);
     } catch (error) {
       console.error('Öğrenciler getirilirken hata:', error);
@@ -51,7 +46,7 @@ function AdminReportsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [toast, isTeacher, assignedClasses]);
+  }, [toast]);
 
   useEffect(() => {
     fetchStudents();
@@ -117,7 +112,7 @@ function AdminReportsPageContent() {
         totalQuestions: data.totalQuestions,
     }));
     
-    const mostChallengingTopics = topicStatsData.filter(t => t.totalQuestions > 20).sort((a,b) => a.accuracy - b.accuracy).slice(0, 10);
+    const mostChallengingTopics = topicStatsData.filter(t => t.totalQuestions > 20).sort((a,b) => a.accuracy - a.accuracy).slice(0, 10);
     const easiestTopics = topicStatsData.filter(t => t.totalQuestions > 20).sort((a,b) => b.accuracy - a.accuracy).slice(0, 10);
 
     // Leaderboards
