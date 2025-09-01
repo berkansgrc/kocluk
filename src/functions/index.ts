@@ -7,9 +7,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 // Initialize Firebase Admin SDK
-const app = initializeApp();
-const db = getFirestore(app);
-const auth = getAuth(app);
+initializeApp();
 
 /**
  * Creates a new student user in Firebase Authentication and a corresponding
@@ -27,7 +25,7 @@ export const createStudent = onCall(async (request) => {
   }
 
   // Security Check 2: Ensure the caller is an admin.
-  // In a real production app, use custom claims for roles.
+  // In a real production app, use custom claims for roles for better security.
   if (request.auth.token.email !== 'berkan_1225@hotmail.com') {
     throw new HttpsError(
       'permission-denied', 
@@ -52,29 +50,22 @@ export const createStudent = onCall(async (request) => {
       );
   }
 
-  let userRecord;
+  let uid;
+
   try {
     // 1. Create user in Firebase Authentication
-    userRecord = await auth.createUser({
+    const userRecord = await getAuth().createUser({
       email,
       password,
       displayName: name,
     });
-  } catch (error: any) {
-     console.error('Error creating auth user:', error);
-     if (error.code === 'auth/email-already-exists') {
-      throw new HttpsError('already-exists', 'Bu e-posta adresi zaten kullanımda.');
-    }
-    throw new HttpsError('internal', 'Authentication kullanıcısı oluşturulurken bir hata oluştu.');
-  }
+    uid = userRecord.uid;
 
-
-  try {
     // 2. Create user document in Firestore with default values
     const studentData = {
       name,
       email,
-      className: className || '', // Provide a default value if className is missing
+      className: className || '', // Ensure className is not undefined
       weeklyQuestionGoal: 100,
       studySessions: [],
       assignments: [],
@@ -85,15 +76,27 @@ export const createStudent = onCall(async (request) => {
       calendarEvents: [],
     };
     
-    await db.collection('students').doc(userRecord.uid).set(studentData);
+    await getFirestore().collection('students').doc(uid).set(studentData);
 
-    return { success: true, message: 'Öğrenci başarıyla oluşturuldu.', uid: userRecord.uid };
+    return { success: true, message: 'Öğrenci başarıyla oluşturuldu.', uid };
 
   } catch (error: any) {
-    console.error('Error creating student document in Firestore:', error);
-    // If Firestore write fails, we should ideally delete the created auth user for cleanup.
-    await auth.deleteUser(userRecord.uid);
-    throw new HttpsError('internal', 'Kullanıcı veritabanına kaydedilirken bir hata oluştu.');
+    // If there was an error, and we managed to create an auth user,
+    // we should delete it to clean up.
+    if (uid) {
+      await getAuth().deleteUser(uid);
+    }
+    
+    // Log the detailed error to the console for debugging
+    console.error('Error creating student:', error);
+
+    // Provide a more specific error message to the client if possible
+    if (error.code === 'auth/email-already-exists') {
+      throw new HttpsError('already-exists', 'Bu e-posta adresi zaten kullanımda.');
+    }
+    
+    // For all other errors, throw a generic internal error.
+    throw new HttpsError('internal', 'Öğrenci oluşturulurken beklenmedik bir sunucu hatası oluştu.');
   }
 });
     
