@@ -3,32 +3,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isStudent() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
+    // --- Helper Functions ---
+    function isAuth() {
+      return request.auth != null;
     }
 
     function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Admin user is identified by their specific email. 
+      // For production apps, it is recommended to use custom claims.
+      return isAuth() && request.auth.token.email == 'berkan_1225@hotmail.com';
     }
 
-    // Students can only read/write their own data.
-    // Admins can read/write any student data.
+    function isOwner(uid) {
+      // Checks if the requesting user is the owner of the document.
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // --- Collections Rules ---
+
+    // Students Collection
+    // Students can read and update their own documents.
+    // Admins can read, update, create and delete any student document.
     match /students/{studentId} {
-      allow read, update: if request.auth.uid == studentId || isAdmin();
-      allow create: if isAdmin();
+      allow read, update: if isOwner(studentId) || isAdmin();
+      allow create, delete: if isAdmin();
     }
 
-    // Subjects can be read by any authenticated user.
-    // Only admins can create, update, or delete subjects.
+    // Subjects Collection
+    // Any authenticated user can read the subjects list for populating forms.
+    // Only admins can modify the course library.
     match /subjects/{subjectId} {
-      allow read: if request.auth.uid != null;
+      allow read: if isAuth();
       allow write: if isAdmin();
-    }
-    
-    // Only admins can read/write user roles.
-    match /users/{userId} {
-      allow read, write: if isAdmin();
     }
   }
 }
