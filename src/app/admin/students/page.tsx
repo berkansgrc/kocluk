@@ -27,33 +27,10 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowUpDown, Eye, PlusCircle } from 'lucide-react';
+import { ArrowUpDown, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { startOfWeek, isAfter, fromUnixTime } from 'date-fns';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose,
-} from '@/components/ui/dialog';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-
 
 type SortableKeys = 'name' | 'email' | 'className' | 'avgAccuracy' | 'questionsThisWeek';
 type SortDirection = 'asc' | 'desc';
@@ -63,13 +40,6 @@ interface StudentWithStats extends Student {
     questionsThisWeek: number;
 }
 
-const addStudentFormSchema = z.object({
-  name: z.string().min(3, { message: 'Ad soyad en az 3 karakter olmalıdır.' }),
-  email: z.string().email({ message: 'Lütfen geçerli bir e-posta adresi girin.' }),
-  password: z.string().min(6, { message: 'Şifre en az 6 karakter olmalıdır.' }),
-  className: z.string().optional(),
-});
-
 
 function AdminStudentsPageContent() {
   const { toast } = useToast();
@@ -77,17 +47,9 @@ function AdminStudentsPageContent() {
   const router = useRouter();
   const [students, setStudents] = useState<StudentWithStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAddingStudent, setIsAddingStudent] = useState(false);
-  const [isAddStudentDialogOpen, setAddStudentDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: SortDirection } | null>({ key: 'name', direction: 'asc' });
-
-  const addStudentForm = useForm<z.infer<typeof addStudentFormSchema>>({
-    resolver: zodResolver(addStudentFormSchema),
-    defaultValues: { name: '', email: '', password: '', className: '' },
-  });
-
 
   const fetchAndProcessStudents = useCallback(async () => {
     setLoading(true);
@@ -167,38 +129,6 @@ function AdminStudentsPageContent() {
     }
     setSortConfig({ key, direction });
   };
-
-  const handleAddStudent = async (values: z.infer<typeof addStudentFormSchema>) => {
-      setIsAddingStudent(true);
-      try {
-        const functions = getFunctions();
-        const createStudent = httpsCallable(functions, 'createStudent');
-        const result = await createStudent(values);
-
-        const data = result.data as { success: boolean, message: string };
-        if (data.success) {
-            toast({
-                title: 'Başarılı!',
-                description: 'Yeni öğrenci başarıyla oluşturuldu.',
-            });
-            setAddStudentDialogOpen(false);
-            addStudentForm.reset();
-            await fetchAndProcessStudents(); // Refresh the list
-        } else {
-             throw new Error(data.message || 'Öğrenci oluşturulamadı.');
-        }
-
-      } catch (error: any) {
-        console.error('Öğrenci oluşturulurken hata:', error);
-        toast({
-            title: 'Hata',
-            description: error.message || 'Öğrenci oluşturulurken bir sorun oluştu.',
-            variant: 'destructive',
-        });
-      } finally {
-        setIsAddingStudent(false);
-      }
-  };
   
   const SortableHeader = ({ sortKey, label, className }: { sortKey: SortableKeys, label: string, className?: string }) => (
     <TableHead className={className}>
@@ -221,7 +151,6 @@ function AdminStudentsPageContent() {
               <Skeleton className="h-10 w-64" />
               <Skeleton className="h-10 w-48" />
             </div>
-            <Skeleton className='h-10 w-36' />
         </div>
         <div className="rounded-md border">
           <Table>
@@ -249,75 +178,6 @@ function AdminStudentsPageContent() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight font-headline">Tüm Öğrenciler</h1>
             </div>
-            <Dialog open={isAddStudentDialogOpen} onOpenChange={setAddStudentDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button><PlusCircle className='w-4 h-4 mr-2' /> Yeni Öğrenci Ekle</Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Yeni Öğrenci Ekle</DialogTitle>
-                        <DialogDescription>
-                            Yeni bir öğrenci hesabı oluşturun ve sisteme dahil edin.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <Form {...addStudentForm}>
-                        <form onSubmit={addStudentForm.handleSubmit(handleAddStudent)} className="space-y-4">
-                            <FormField
-                                control={addStudentForm.control}
-                                name="name"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Ad Soyad</FormLabel>
-                                        <FormControl><Input placeholder="Örn: Ahmet Yılmaz" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={addStudentForm.control}
-                                name="email"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>E-posta</FormLabel>
-                                        <FormControl><Input type="email" placeholder="ornek@eposta.com" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={addStudentForm.control}
-                                name="password"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Başlangıç Şifresi</FormLabel>
-                                        <FormControl><Input type="password" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={addStudentForm.control}
-                                name="className"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Sınıf</FormLabel>
-                                        <FormControl><Input placeholder="Örn: 8-A" {...field} value={field.value || ''} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <DialogFooter>
-                                <DialogClose asChild>
-                                    <Button type="button" variant="secondary" disabled={isAddingStudent}>İptal</Button>
-                                </DialogClose>
-                                <Button type="submit" disabled={isAddingStudent}>
-                                    {isAddingStudent ? 'Ekleniyor...' : 'Öğrenciyi Ekle'}
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </Form>
-                </DialogContent>
-            </Dialog>
        </div>
       <div className="flex items-center gap-4">
         <Input
