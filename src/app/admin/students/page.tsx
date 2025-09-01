@@ -3,16 +3,12 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { 
   collection, 
   getDocs, 
-  writeBatch, 
-  doc,
-  deleteDoc
 } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import type { Student, StudySession } from '@/lib/types';
+import type { Student } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { AppLayout } from '@/components/app-layout';
@@ -34,44 +30,11 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowUpDown, Eye, Trash2, UserPlus } from 'lucide-react';
+import { ArrowUpDown, Eye, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { startOfWeek, isAfter, fromUnixTime } from 'date-fns';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogClose,
-  DialogTrigger
-} from '@/components/ui/dialog';
-import * as z from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-
-
-const addStudentFormSchema = z.object({
-  name: z.string().min(3, { message: 'İsim en az 3 karakter olmalıdır.' }),
-  email: z.string().email({ message: 'Geçerli bir e-posta adresi girin.' }),
-  password: z.string().min(6, { message: 'Şifre en az 6 karakter olmalıdır.' }),
-  className: z.string().optional(),
-});
-
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type SortableKeys = 'name' | 'email' | 'className' | 'avgAccuracy' | 'questionsThisWeek';
 type SortDirection = 'asc' | 'desc';
@@ -81,23 +44,15 @@ interface StudentWithStats extends Student {
     questionsThisWeek: number;
 }
 
-
 function AdminStudentsPageContent() {
   const { toast } = useToast();
   const { user, isAdmin } = useAuth();
   const router = useRouter();
   const [students, setStudents] = useState<StudentWithStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: SortDirection } | null>({ key: 'name', direction: 'asc' });
-
-  const addStudentForm = useForm<z.infer<typeof addStudentFormSchema>>({
-    resolver: zodResolver(addStudentFormSchema),
-    defaultValues: { name: '', email: '', password: '', className: '' },
-  });
-
 
   const fetchAndProcessStudents = useCallback(async () => {
     setLoading(true);
@@ -177,91 +132,7 @@ function AdminStudentsPageContent() {
     }
     setSortConfig({ key, direction });
   };
-
-  const handleAddStudent = async (values: z.infer<typeof addStudentFormSchema>) => {
-    setIsSubmitting(true);
-    const functions = getFunctions();
-    const createStudentAuth = httpsCallable(functions, 'createStudentAuth');
-
-    try {
-      // Step 1: Create user in Firebase Auth via Cloud Function
-      const result: any = await createStudentAuth({ email: values.email, password: values.password });
-      const { uid } = result.data;
-
-      if (!uid) {
-        throw new Error("UID alınamadı.");
-      }
-
-      // Step 2: Create user and student documents in Firestore using a batch write
-      const batch = writeBatch(db);
-      
-      const userDocRef = doc(db, 'users', uid);
-      batch.set(userDocRef, {
-        uid: uid,
-        email: values.email,
-        role: 'student',
-      });
-
-      const studentDocRef = doc(db, 'students', uid);
-      batch.set(studentDocRef, {
-        id: uid,
-        name: values.name,
-        email: values.email,
-        className: values.className || '',
-        weeklyQuestionGoal: 100,
-        studySessions: [],
-        assignments: [],
-        resources: [],
-        weeklyPlan: [],
-        isPlanNew: false,
-        unlockedAchievements: [],
-        calendarEvents: [],
-      });
-
-      await batch.commit();
-
-      toast({ title: 'Başarılı!', description: `${values.name} adlı öğrenci başarıyla eklendi.` });
-      addStudentForm.reset();
-      await fetchAndProcessStudents();
-
-    } catch (error: any) {
-      console.error('Öğrenci eklenirken hata:', error);
-      let errorMessage = 'Öğrenci eklenirken bir hata oluştu. Lütfen tekrar deneyin.';
-      if (error.code === 'functions/already-exists') {
-        errorMessage = 'Bu e-posta adresi zaten kullanımda.';
-      } else if (error.code) {
-        errorMessage = `Bir hata oluştu: ${error.message}`;
-      }
-      toast({ title: 'Hata', description: errorMessage, variant: 'destructive' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
   
-  const handleDeleteStudent = async (studentId: string, studentName: string) => {
-    const functions = getFunctions();
-    const deleteStudentAuth = httpsCallable(functions, 'deleteStudentAuth');
-    try {
-        // First, delete from Firestore
-        const batch = writeBatch(db);
-        const studentDocRef = doc(db, 'students', studentId);
-        const userDocRef = doc(db, 'users', studentId);
-        batch.delete(studentDocRef);
-        batch.delete(userDocRef);
-        await batch.commit();
-
-        // Then, delete from Auth
-        await deleteStudentAuth({ uid: studentId });
-
-        toast({ title: 'Başarılı!', description: `${studentName} adlı öğrenci silindi.` });
-        await fetchAndProcessStudents();
-    } catch (error: any) {
-        console.error('Öğrenci silinirken hata:', error);
-        toast({ title: 'Hata', description: 'Öğrenci silinirken bir sorun oluştu.', variant: 'destructive' });
-    }
-  };
-
-
   const SortableHeader = ({ sortKey, label, className }: { sortKey: SortableKeys, label: string, className?: string }) => (
     <TableHead className={className}>
         <Button variant="ghost" onClick={() => requestSort(sortKey)}>
@@ -283,7 +154,6 @@ function AdminStudentsPageContent() {
               <Skeleton className="h-10 w-64" />
               <Skeleton className="h-10 w-48" />
             </div>
-            <Skeleton className="h-10 w-36" />
         </div>
         <div className="rounded-md border">
           <Table>
@@ -311,60 +181,15 @@ function AdminStudentsPageContent() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight font-headline">Tüm Öğrenciler</h1>
             </div>
-            <Dialog>
-                <DialogTrigger asChild>
-                    <Button>
-                        <UserPlus className="mr-2 h-4 w-4" /> Yeni Öğrenci Ekle
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Yeni Öğrenci Ekle</DialogTitle>
-                        <DialogDescription>
-                            Yeni öğrencinin bilgilerini girerek sisteme kaydedin.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <Form {...addStudentForm}>
-                        <form onSubmit={addStudentForm.handleSubmit(handleAddStudent)} className="space-y-4">
-                           <FormField control={addStudentForm.control} name="name" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>İsim Soyisim</FormLabel>
-                                    <FormControl><Input placeholder="Öğrencinin adı" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                            <FormField control={addStudentForm.control} name="email" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>E-posta</FormLabel>
-                                    <FormControl><Input type="email" placeholder="ornek@eposta.com" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                             <FormField control={addStudentForm.control} name="password" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Geçici Şifre</FormLabel>
-                                    <FormControl><Input type="password" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                             <FormField control={addStudentForm.control} name="className" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Sınıf</FormLabel>
-                                    <FormControl><Input placeholder="Örn: 8-A (isteğe bağlı)" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                            <DialogFooter>
-                                <DialogClose asChild><Button type="button" variant="secondary">İptal</Button></DialogClose>
-                                <Button type="submit" disabled={isSubmitting}>
-                                    {isSubmitting ? 'Ekleniyor...' : 'Öğrenciyi Ekle'}
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </Form>
-                </DialogContent>
-            </Dialog>
        </div>
+
+       <Alert>
+        <Info className="h-4 w-4" />
+        <AlertTitle>Öğrenci Yönetimi</AlertTitle>
+        <AlertDescription>
+          Yeni öğrenci ekleme ve silme işlemleri, sistem kararlılığını korumak amacıyla geçici olarak sadece <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="font-bold underline">Firebase Konsolu</a> üzerinden yapılmalıdır. Bu, olası hataları önlemek için bir güvenlik önlemidir.
+        </AlertDescription>
+       </Alert>
 
       <div className="flex items-center gap-4">
         <Input
@@ -416,23 +241,6 @@ function AdminStudentsPageContent() {
                   <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/student/${student.id}`)}>
                     <Eye className="h-4 w-4" />
                   </Button>
-                   <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Bu işlem geri alınamaz. "{student.name}" adlı öğrenciyi, tüm verileriyle birlikte kalıcı olarak sileceksiniz.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>İptal</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteStudent(student.id, student.name)}>Sil</AlertDialogAction>
-                          </AlertDialogFooter>
-                      </AlertDialogContent>
-                   </AlertDialog>
                 </TableCell>
               </TableRow>
             ))}
