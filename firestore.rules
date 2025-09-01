@@ -1,41 +1,67 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions to make rules more readable.
-    function isAuth() {
-      return request.auth != null;
-    }
+    // Helper function to check if a user is an admin
     function isAdmin() {
-      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    function isOwner(userId) {
-      return isAuth() && request.auth.uid == userId;
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Default deny all reads and writes
-    match /{document=**} {
-      allow read, write: if false;
+    // Helper function to get the current user's role document
+    function getUser(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
     }
     
-    // Students can read/write their own data. Admins can read anyone's data.
+    // Helper function to check if the user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Students:
+    // - Students can read/write their own data.
+    // - Teachers can read data of students in their assigned classes.
+    // - Admins can read/write any student data.
     match /students/{studentId} {
-      allow read, write: if isOwner(studentId) || isAdmin();
+      allow read: if isSignedIn() && 
+                    (request.auth.uid == studentId || 
+                     isAdmin() ||
+                     (getUser(request.auth.uid).role == 'teacher' && resource.data.className in getUser(request.auth.uid).assignedClasses));
+      
+      allow update: if isSignedIn() && (request.auth.uid == studentId || isAdmin());
+      
+      // Only admins can create or delete students. This is handled by backend functions.
+      allow create, delete: if isAdmin();
     }
-    
-    // Users can read their own user object. Admins can read anyone's.
+
+    // Users:
+    // - Users can read their own user document.
+    // - Admins can read/write any user document.
+    // - Teachers can update their assigned classes list (if needed, currently only admin can).
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      // Only admins can create or update user roles.
-      allow create, update: if isAdmin();
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin(); // Only admins can list all users.
+      allow update: if isAdmin(); // Only admins can change roles or assigned classes.
+      // Create/delete is handled by backend functions.
+      allow create, delete: if isAdmin();
     }
     
-    // Subjects can be read by any authenticated user, but only written by admins.
+    // Teachers:
+    // - A user can read their own teacher document.
+    // - Admins can read/write any teacher document.
+    match /teachers/{teacherId} {
+        allow get: if isSignedIn() && (request.auth.uid == teacherId || isAdmin());
+        allow update: if isAdmin();
+        allow create, delete: if isAdmin();
+    }
+
+    // Subjects library:
+    // - Any authenticated user can read the subjects list.
+    // - Only admins and teachers can write to the subjects list.
     match /subjects/{subjectId} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (isAdmin() || getUser(request.auth.uid).role == 'teacher');
     }
   }
 }
