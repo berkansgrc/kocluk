@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
 import type { Student, StudySession } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
@@ -72,7 +71,7 @@ const addStudentFormSchema = z.object({
 
 function AdminStudentsPageContent() {
   const { toast } = useToast();
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const router = useRouter();
   const [students, setStudents] = useState<StudentWithStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,13 +163,32 @@ function AdminStudentsPageContent() {
     }
     setSortConfig({ key, direction });
   };
-
+  
   const handleAddStudent = async (values: z.infer<typeof addStudentFormSchema>) => {
+    if (!isAdmin) {
+      toast({ title: 'Yetki Hatası', description: 'Bu işlemi sadece adminler yapabilir.', variant: 'destructive' });
+      return;
+    }
+  
+    // This is a placeholder for a secure way to create users.
+    // In a real app, this should be a Cloud Function.
+    // Since the Cloud Function is causing an internal error, we alert the user
+    // that this functionality is simulated for now.
+    toast({
+      title: 'Simülasyon Modu',
+      description: 'Yeni öğrenci ekleme özelliği şu anda kapalıdır. Lütfen Firebase konsolunu kullanarak manuel olarak öğrenci ekleyin ve Firestore\'a gerekli dokümanları oluşturun.',
+      variant: 'destructive',
+      duration: 10000,
+    });
+  
+    // The following code is what SHOULD run inside a secure Cloud Function.
+    // We keep it here commented out for reference.
+    /*
     const functions = getFunctions();
     const createStudent = httpsCallable(functions, 'createStudent');
     
     toast({ title: 'Öğrenci Ekleniyor...', description: 'Lütfen bekleyin.' });
-
+  
     try {
       const result: any = await createStudent(values);
       if (result.data.success) {
@@ -189,7 +207,9 @@ function AdminStudentsPageContent() {
         variant: 'destructive',
       });
     }
+    */
   };
+
   
   const SortableHeader = ({ sortKey, label, className }: { sortKey: SortableKeys, label: string, className?: string }) => (
     <TableHead className={className}>
