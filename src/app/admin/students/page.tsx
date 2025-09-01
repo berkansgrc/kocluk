@@ -169,21 +169,7 @@ function AdminStudentsPageContent() {
       toast({ title: 'Yetki Hatası', description: 'Bu işlemi sadece adminler yapabilir.', variant: 'destructive' });
       return;
     }
-  
-    // This is a placeholder for a secure way to create users.
-    // In a real app, this should be a Cloud Function.
-    // Since the Cloud Function is causing an internal error, we alert the user
-    // that this functionality is simulated for now.
-    toast({
-      title: 'Simülasyon Modu',
-      description: 'Yeni öğrenci ekleme özelliği şu anda kapalıdır. Lütfen Firebase konsolunu kullanarak manuel olarak öğrenci ekleyin ve Firestore\'a gerekli dokümanları oluşturun.',
-      variant: 'destructive',
-      duration: 10000,
-    });
-  
-    // The following code is what SHOULD run inside a secure Cloud Function.
-    // We keep it here commented out for reference.
-    /*
+    
     const functions = getFunctions();
     const createStudent = httpsCallable(functions, 'createStudent');
     
@@ -195,7 +181,7 @@ function AdminStudentsPageContent() {
         toast({ title: 'Başarılı!', description: 'Öğrenci başarıyla eklendi.' });
         addStudentForm.reset();
         setIsAddStudentOpen(false);
-        fetchAndProcessStudents(); // Refresh the list
+        await fetchAndProcessStudents(); // Refresh the list
       } else {
         throw new Error(result.data.error || 'Bilinmeyen bir hata oluştu.');
       }
@@ -207,7 +193,6 @@ function AdminStudentsPageContent() {
         variant: 'destructive',
       });
     }
-    */
   };
 
   

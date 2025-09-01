@@ -3,5 +3,12 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
-  }
+  },
+  "functions": [
+    {
+      "source": "src/functions",
+      "codebase": "default",
+      "runtime": "nodejs20"
+    }
+  ]
 }

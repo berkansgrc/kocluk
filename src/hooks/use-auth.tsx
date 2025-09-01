@@ -23,13 +23,14 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;
+  isTeacher: boolean;
   login: (email: string, pass: string) => Promise<any>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const protectedRoutes = ['/', '/plan', '/reports', '/resources', '/achievements', '/zaman-yonetimi', '/deneme-analizi', '/hata-raporu'];
+export const protectedRoutes = ['/', '/plan', '/reports', '/resources', '/achievements', '/zaman-yonetimi', '/deneme-analizi'];
 export const adminRoutes = ['/admin', '/admin/student', '/admin/library', '/admin/reports', '/admin/students'];
 
 
@@ -37,6 +38,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isTeacher, setIsTeacher] = useState(false);
   
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -44,14 +46,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         
-        // This is a simple way to check for admin. 
-        // For a real app, you would want to use Firestore custom claims.
-        const isAdminByEmail = firebaseUser.email === 'berkan_1225@hotmail.com';
-        setIsAdmin(isAdminByEmail);
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            setIsAdmin(userData.role === 'admin');
+            setIsTeacher(userData.role === 'teacher');
+        } else {
+            // Fallback for the original admin email, just in case
+            const isAdminByEmail = firebaseUser.email === 'berkan_1225@hotmail.com';
+            setIsAdmin(isAdminByEmail);
+            setIsTeacher(false);
+        }
 
       } else {
         setUser(null);
         setIsAdmin(false);
+        setIsTeacher(false);
       }
       setLoading(false);
     });
@@ -69,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
   
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, isAdmin, isTeacher, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
