@@ -14,12 +14,10 @@ initializeApp();
  * document in the 'students' collection in Firestore.
  *
  * This function can only be called by an authenticated user who is an admin.
- * For now, admin status is checked via a hardcoded email.
- * TODO: In a production environment, this should be converted to use custom claims.
  */
 export const createStudent = onCall(async (request) => {
   // Security Check: Ensure the caller is an authenticated admin.
-  // This is a basic check. For production, use custom claims: `if (request.auth?.token.admin !== true)`
+  // In a production app, use custom claims: `if (request.auth?.token.admin !== true)`
   if (request.auth?.token.email !== 'berkan_1225@hotmail.com') {
     throw new HttpsError(
       'permission-denied', 
@@ -59,7 +57,8 @@ export const createStudent = onCall(async (request) => {
       unlockedAchievements: [],
       calendarEvents: [],
     };
-
+    
+    // Correctly write data to Firestore
     await getFirestore().collection('students').doc(userRecord.uid).set(studentData);
 
     return { success: true, message: 'Öğrenci başarıyla oluşturuldu.', uid: userRecord.uid };
